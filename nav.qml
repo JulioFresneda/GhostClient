@@ -12,11 +12,13 @@ Item {
     height: 1080
 
     // Properties for data management
-    property var collectionsData: []  // Store collections
-    property var mediaData: []        // Store all media
-    property var filteredData: []     // Store filtered results
+    property var collectionsData: []
+    property var mediaData: []
+    property var filteredData: []
     property string currentCategory: "all"
     property bool isGridView: true
+    property string selectedCollectionId: ""  // Add this
+    property string selectedCollectionTitle: "" // Add this
 
     // Color scheme
     QtObject {
@@ -90,6 +92,37 @@ Item {
                 }
 
                 Item { Layout.fillHeight: true } // Spacer
+
+                ItemDelegate {
+                    Layout.fillWidth: true
+                    height: 48
+                    visible: selectedCollectionId !== ""
+
+                    background: Rectangle {
+                        color: "transparent"
+                        radius: 8
+                    }
+
+                    contentItem: RowLayout {
+                        spacing: 8
+                        Text {
+                            text: "←"
+                            color: colors.textPrimary
+                            font.pointSize: 16
+                        }
+                        Text {
+                            text: "Back"
+                            color: colors.textPrimary
+                            font.pointSize: 14
+                        }
+                    }
+
+                    onClicked: {
+                        selectedCollectionId = ""
+                        selectedCollectionTitle = ""
+                        filterContent()
+                    }
+                }
             }
         }
 
@@ -111,6 +144,17 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 8
                     spacing: 16
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: selectedCollectionTitle
+                        color: colors.textPrimary
+                        font {
+                            pointSize: 24
+                            bold: true
+                        }
+                        visible: selectedCollectionId !== ""
+                    }
 
                     // Search Field
                     TextField {
@@ -222,13 +266,10 @@ Item {
                         property bool isCollection: modelData.collection_title ? true : false
     
                         onClicked: {
-                            if (isCollection) {
-                                console.log("Selected collection:", modelData.collection_title)
-                                // Here you could implement collection-specific behavior
-                                // like showing all items in the collection
-                            } else {
-                                console.log("Selected media:", modelData.title)
-                                // Implement media-specific behavior
+                            if (!selectedCollectionId && modelData.collection_title) {
+                                selectedCollectionId = modelData.ID
+                                selectedCollectionTitle = modelData.collection_title
+                                filterContent()
                             }
                         }
                     }
@@ -421,6 +462,27 @@ Item {
     // Functions
     function filterContent() {
         let searchText = searchField.text.toLowerCase()
+
+        if (selectedCollectionId !== "") {
+            let selectedCollection = collectionsData.find(c => c.ID === selectedCollectionId)
+            if (selectedCollection) {
+                // Filter media items that belong to this collection
+                filteredData = mediaData.filter(media => {
+                    let matchesCollection = media.collection_id === selectedCollectionId
+                    let matchesSearch = media.title.toLowerCase().includes(searchText)
+                    return matchesCollection && matchesSearch
+                })
+
+                // Sort by season and episode if available
+                filteredData.sort((a, b) => {
+                    if (a.season !== b.season) {
+                        return (a.season || 0) - (b.season || 0)
+                    }
+                    return (a.episode || 0) - (b.episode || 0)
+                })
+            }
+            return
+        }
     
         console.log("Filtering with:", {
             mediaDataLength: mediaData.length,
@@ -483,18 +545,18 @@ Item {
         target: loginManager
 
         function onMediaDataFetched(fetchedData) {
-            console.log("Received media data structure:", Object.keys(fetchedData))
-        
-            // Update collections
+            console.log("Received media data:", JSON.stringify(fetchedData, null, 2))
+
+            // Store collections
             if (fetchedData.collections) {
                 root.collectionsData = fetchedData.collections
-                console.log("Collections loaded:", root.collectionsData.length)
+                console.log("Loaded collections:", root.collectionsData.length)
             }
 
-            // Update media
+            // Store media items
             if (fetchedData.media) {
                 root.mediaData = fetchedData.media
-                console.log("Media items loaded:", root.mediaData.length)
+                console.log("Total media items loaded:", root.mediaData.length)
             }
 
             // Initial filtering
