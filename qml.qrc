@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/qt/qml/ghostclient">
+        <file>main.qml</file>
+        <file>nav.qml</file>
+        <file>CoverImage.qml</file>
+    </qresource>
+</RCC>

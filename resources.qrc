@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>media/logo.png</file>
+        <file>media/ghosts/1.png</file>
+        <file>media/ghosts/2.png</file>
+        <file>media/ghosts/3.png</file>
+        <file>media/ghosts/4.png</file>
+    </qresource>
+</RCC>
