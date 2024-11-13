@@ -3,5 +3,6 @@
         <file>main.qml</file>
         <file>nav.qml</file>
         <file>CoverImage.qml</file>
+        <file>PlayerView.qml</file>
     </qresource>
 </RCC>

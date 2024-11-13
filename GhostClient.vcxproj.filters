@@ -35,9 +35,15 @@
     <ClCompile Include="Login.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="VLCPlayerHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Login.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="VLCPlayerHandler.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -68,5 +74,9 @@
     <None Include="CoverImage.qml">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="PlayerView.qml">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

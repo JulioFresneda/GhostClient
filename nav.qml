@@ -1,9 +1,11 @@
 ﻿// In nav.qml, at the top with other imports:
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick.Controls.Basic
-import "."  // This is important to import local components
+import QtMultimedia
+import com.ghoststream 1.0
+import "." 
 
 
 Item {
@@ -19,6 +21,8 @@ Item {
     property bool isGridView: true
     property string selectedCollectionId: ""  // Add this
     property string selectedCollectionTitle: "" // Add this
+    property bool isPlayerVisible: false
+    property string currentMediaId: ""
 
     // Color scheme
     QtObject {
@@ -252,7 +256,9 @@ Item {
     
                         // Title handling for all cases
                         title: {
-                            if (currentCategory === "series" || 
+                            if (selectedCollectionId) {
+                                return modelData.title || ""
+                            } else if (currentCategory === "series" || 
                                 (currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) {
                                 return modelData.collection_title || ""
                             }
@@ -265,13 +271,7 @@ Item {
                         // Add a property to indicate if this is a collection
                         property bool isCollection: modelData.collection_title ? true : false
     
-                        onClicked: {
-                            if (!selectedCollectionId && modelData.collection_title) {
-                                selectedCollectionId = modelData.ID
-                                selectedCollectionTitle = modelData.collection_title
-                                filterContent()
-                            }
-                        }
+                        
                     }
                 }
 
@@ -358,7 +358,25 @@ Item {
         MouseArea {
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: card.clicked()
+            onClicked: {
+                console.log("MediaCard clicked:", mediaId, "Collection:", modelData.collection_title) // Debug log
+                if (selectedCollectionId) {
+                    // When clicking a media item inside a collection view
+                    console.log("Loading media from collection:", modelData.ID)
+                    currentMediaId = modelData.ID
+                    isPlayerVisible = true
+                } else if (modelData.collection_title) {
+                    // When clicking a collection card
+                    selectedCollectionId = modelData.ID
+                    selectedCollectionTitle = modelData.collection_title
+                    filterContent()
+                } else {
+                    // When clicking a standalone media item
+                    console.log("Loading standalone media:", modelData.ID)
+                    currentMediaId = modelData.ID
+                    isPlayerVisible = true
+                }
+            }
             onEntered: card.state = "hover"
             onExited: card.state = ""
         }
@@ -563,4 +581,67 @@ Item {
             filterContent()
         }
     }
+
+
+
+
+    Loader {
+        id: playerLoader
+        anchors.fill: parent
+        visible: isPlayerVisible
+        z: 1000
+
+        sourceComponent: isPlayerVisible ? playerComponent : null
+    }
+
+    Component {
+        id: playerComponent
+        Rectangle {
+            color: "black"  // Background for the player
+            anchors.fill: parent
+
+            // Add the PlayerView
+            Item {
+                anchors.fill: parent
+
+                VideoOutput {
+                    id: videoOutput
+                    anchors.fill: parent
+                }
+
+                VLCPlayerHandler {  // Changed from MediaPlayerHandler
+                    id: mediaPlayer
+                    videoSink: videoOutput.videoSink
+
+                    Component.onCompleted: {
+                        if (currentMediaId) {
+                            loadMedia(currentMediaId)
+                            playMedia()
+                        }
+                    }
+                }
+
+                // Add controls overlay
+                Rectangle {
+                    anchors.top: parent.top
+                    width: parent.width
+                    height: 50
+                    color: "#80000000"  // Semi-transparent black
+
+                    Button {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Back"
+                        onClicked: {
+                            mediaPlayer.stop()
+                            isPlayerVisible = false
+                            currentMediaId = ""
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+// The rest of your nav.qml code remains the same
 }

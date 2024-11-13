@@ -2,8 +2,9 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QtQuickControls2>
+#include <QQmlContext>
 #include "Login.h"
-
+#include "VLCPlayerHandler.h"  // Make sure this path is correct
 
 int main(int argc, char* argv[])
 {
@@ -12,12 +13,11 @@ int main(int argc, char* argv[])
 #endif
 
     QGuiApplication app(argc, argv);
+    QQuickStyle::setStyle("Basic");
 
-    // Set the style before creating any QML components
-    QQuickStyle::setStyle("Basic");  // Use Basic style which allows full customization
-
-    // Register Login class
+    // Register types with the correct template parameters
     qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");
+    qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
 
     QQmlApplicationEngine engine;
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ghostclient/main.qml")));
