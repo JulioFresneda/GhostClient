@@ -1,12 +1,10 @@
-﻿// In nav.qml, at the top with other imports:
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
 import QtMultimedia
 import com.ghoststream 1.0
 import "." 
-
 
 Item {
     id: root
@@ -19,8 +17,8 @@ Item {
     property var filteredData: []
     property string currentCategory: "all"
     property bool isGridView: true
-    property string selectedCollectionId: ""  // Add this
-    property string selectedCollectionTitle: "" // Add this
+    property string selectedCollectionId: ""
+    property string selectedCollectionTitle: ""
     property bool isPlayerVisible: false
     property string currentMediaId: ""
 
@@ -42,7 +40,9 @@ Item {
 
     // Main Layout
     RowLayout {
+        id: mainContent
         anchors.fill: parent
+        visible: !isPlayerVisible
         spacing: 0
 
         // Sidebar
@@ -160,7 +160,6 @@ Item {
                         visible: selectedCollectionId !== ""
                     }
 
-                    // Search Field
                     TextField {
                         id: searchField
                         Layout.fillWidth: true
@@ -181,8 +180,8 @@ Item {
                         id: groupMoviesCheck
                         text: "Group by Collection"
                         visible: currentCategory === "movies"
-                        checked: false  // Default to ungrouped
-            
+                        checked: false
+
                         contentItem: Text {
                             text: groupMoviesCheck.text
                             color: colors.textPrimary
@@ -210,7 +209,6 @@ Item {
                         onCheckedChanged: filterContent()
                     }
 
-                    // View Toggle Buttons
                     Row {
                         spacing: 8
 
@@ -234,8 +232,7 @@ Item {
                     }
                 }
             }
-
-            // Content Grid/List View
+// Content Grid/List View
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -253,25 +250,14 @@ Item {
                     delegate: MediaCard {
                         width: 180
                         height: 280
-    
-                        // Title handling for all cases
-                        title: {
-                            if (selectedCollectionId) {
-                                return modelData.title || ""
-                            } else if (currentCategory === "series" || 
-                                (currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) {
-                                return modelData.collection_title || ""
-                            }
-                            return modelData.title || ""
-                        }
-    
-                        // ID handling for all cases
+                        title: selectedCollectionId ? 
+                               (modelData.title || "") :
+                               (currentCategory === "series" || 
+                               (currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) ?
+                               modelData.collection_title || "" :
+                               modelData.title || ""
                         mediaId: modelData.ID || ""
-    
-                        // Add a property to indicate if this is a collection
                         property bool isCollection: modelData.collection_title ? true : false
-    
-                        
                     }
                 }
 
@@ -287,9 +273,7 @@ Item {
                         height: 80
                         title: modelData.title || "Untitled"
                         description: modelData.description || ""
-                        // Use the mediaId for the CoverImage component
                         mediaId: modelData.ID
-        
                         property string collectionName: {
                             if (modelData.collection_id) {
                                 let collection = root.collectionsData.find(c => c.ID === modelData.collection_id)
@@ -297,7 +281,6 @@ Item {
                             }
                             return ""
                         }
-
                         onClicked: showMediaDetails(modelData)
                     }
 
@@ -307,9 +290,31 @@ Item {
         }
     }
 
-    // Component for grid view items
-    // Inside your nav.qml file, update the MediaCard component
-    // In nav.qml, update the MediaCard component
+
+    Rectangle {
+        id: playerContainer
+        anchors.fill: parent
+        visible: isPlayerVisible
+        z: isPlayerVisible ? 100 : -1
+
+        Loader {
+            id: playerLoader
+            anchors.fill: parent
+            active: isPlayerVisible
+            sourceComponent: Component {
+                MediaPlayer {
+                    mediaId: currentMediaId
+                    title: selectedCollectionTitle
+                    onCloseRequested: {
+                        isPlayerVisible = false
+                        currentMediaId = ""
+                    }
+                }
+            }
+        }
+    }
+
+    // Components for grid and list items
     component MediaCard: Rectangle {
         id: card
         property string title: ""
@@ -334,9 +339,6 @@ Item {
             CoverImage {
                 anchors.fill: parent
                 mediaId: card.mediaId
-                // Remove these two lines:
-                // token: loginManager.storedToken
-                // userId: loginManager.userID
             }
         }
 
@@ -359,19 +361,16 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             onClicked: {
-                console.log("MediaCard clicked:", mediaId, "Collection:", modelData.collection_title) // Debug log
+                console.log("MediaCard clicked:", mediaId, "Collection:", modelData.collection_title)
                 if (selectedCollectionId) {
-                    // When clicking a media item inside a collection view
                     console.log("Loading media from collection:", modelData.ID)
                     currentMediaId = modelData.ID
                     isPlayerVisible = true
                 } else if (modelData.collection_title) {
-                    // When clicking a collection card
                     selectedCollectionId = modelData.ID
                     selectedCollectionTitle = modelData.collection_title
                     filterContent()
                 } else {
-                    // When clicking a standalone media item
                     console.log("Loading standalone media:", modelData.ID)
                     currentMediaId = modelData.ID
                     isPlayerVisible = true
@@ -398,7 +397,7 @@ Item {
         }
     }
 
-    // Component for list view items
+    // Component for list items
     component MediaListItem: Rectangle {
         id: listItem
         property string title: ""
@@ -477,21 +476,26 @@ Item {
         }
     }
 
-    // Functions
+    function formatTime(ms) {
+        let seconds = Math.floor(ms / 1000)
+        let minutes = Math.floor(seconds / 60)
+        seconds = seconds % 60
+        return minutes.toString().padStart(2, '0') + ':' + 
+               seconds.toString().padStart(2, '0')
+    }
+
     function filterContent() {
         let searchText = searchField.text.toLowerCase()
 
         if (selectedCollectionId !== "") {
             let selectedCollection = collectionsData.find(c => c.ID === selectedCollectionId)
             if (selectedCollection) {
-                // Filter media items that belong to this collection
                 filteredData = mediaData.filter(media => {
                     let matchesCollection = media.collection_id === selectedCollectionId
                     let matchesSearch = media.title.toLowerCase().includes(searchText)
                     return matchesCollection && matchesSearch
                 })
 
-                // Sort by season and episode if available
                 filteredData.sort((a, b) => {
                     if (a.season !== b.season) {
                         return (a.season || 0) - (b.season || 0)
@@ -511,7 +515,6 @@ Item {
         })
 
         if (currentCategory === "series") {
-            // Series logic remains the same - show collections
             filteredData = collectionsData.filter(collection => {
                 let matchesSearch = collection.collection_title.toLowerCase().includes(searchText)
                 let isSeries = collection.collection_type === "serie"
@@ -519,29 +522,24 @@ Item {
             })
         } 
         else if (currentCategory === "movies" && groupMoviesCheck.checked) {
-            // Show movie collections AND standalone movies
             let movieCollections = collectionsData.filter(collection => {
                 let matchesSearch = collection.collection_title.toLowerCase().includes(searchText)
                 let isMovies = collection.collection_type === "movies"
                 return matchesSearch && isMovies
             })
 
-            // Get standalone movies (movies without collection_id)
             let standaloneMovies = mediaData.filter(media => {
                 let matchesSearch = (media.title || "").toLowerCase().includes(searchText)
                 return !media.collection_id && media.type === "movie" && matchesSearch
             })
 
-            // Combine collections and standalone movies
             filteredData = [...movieCollections, ...standaloneMovies]
         }
         else {
-            // Show all individual movies or all media depending on category
             filteredData = mediaData.filter(media => {
                 let title = media.title || ""
                 let matchesSearch = title.toLowerCase().includes(searchText)
 
-                // Category filtering
                 let matchesCategory = true
                 if (currentCategory === "movies") {
                     matchesCategory = media.type === "movie"
@@ -556,7 +554,8 @@ Item {
 
     function showMediaDetails(mediaItem) {
         console.log("Selected media:", JSON.stringify(mediaItem, null, 2))
-        // TODO: Implement media details view
+        currentMediaId = mediaItem.ID
+        isPlayerVisible = true
     }
 
     Connections {
@@ -565,13 +564,11 @@ Item {
         function onMediaDataFetched(fetchedData) {
             console.log("Received media data:", JSON.stringify(fetchedData, null, 2))
 
-            // Store collections
             if (fetchedData.collections) {
                 root.collectionsData = fetchedData.collections
                 console.log("Loaded collections:", root.collectionsData.length)
             }
 
-            // Store media items
             if (fetchedData.media) {
                 root.mediaData = fetchedData.media
                 console.log("Total media items loaded:", root.mediaData.length)
@@ -581,67 +578,4 @@ Item {
             filterContent()
         }
     }
-
-
-
-
-    Loader {
-        id: playerLoader
-        anchors.fill: parent
-        visible: isPlayerVisible
-        z: 1000
-
-        sourceComponent: isPlayerVisible ? playerComponent : null
-    }
-
-    Component {
-        id: playerComponent
-        Rectangle {
-            color: "black"  // Background for the player
-            anchors.fill: parent
-
-            // Add the PlayerView
-            Item {
-                anchors.fill: parent
-
-                VideoOutput {
-                    id: videoOutput
-                    anchors.fill: parent
-                }
-
-                VLCPlayerHandler {  // Changed from MediaPlayerHandler
-                    id: mediaPlayer
-                    videoSink: videoOutput.videoSink
-
-                    Component.onCompleted: {
-                        if (currentMediaId) {
-                            loadMedia(currentMediaId)
-                            playMedia()
-                        }
-                    }
-                }
-
-                // Add controls overlay
-                Rectangle {
-                    anchors.top: parent.top
-                    width: parent.width
-                    height: 50
-                    color: "#80000000"  // Semi-transparent black
-
-                    Button {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Back"
-                        onClicked: {
-                            mediaPlayer.stop()
-                            isPlayerVisible = false
-                            currentMediaId = ""
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-// The rest of your nav.qml code remains the same
 }

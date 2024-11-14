@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <vlc/vlc.h>
+#include <QQuickItem>
 
 class VLCPlayerHandler : public QObject {
     Q_OBJECT
@@ -15,6 +16,7 @@ class VLCPlayerHandler : public QObject {
         Q_PROPERTY(qint64 position READ position WRITE setPosition NOTIFY positionChanged)
         Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY playingStateChanged)
         Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
+        
 
 public:
     explicit VLCPlayerHandler(QObject* parent = nullptr);
@@ -27,6 +29,7 @@ public:
     QVideoSink* videoSink() const;
 
 public slots:
+    void attachVideoOutput(QQuickItem* videoOutput);
     void setPosition(qint64 position);
     void setVideoSink(QVideoSink* sink);
     void playMedia();
@@ -43,6 +46,7 @@ signals:
     void videoSinkChanged();
 
 private:
+    
     void initializeVLC();
     void cleanupVLC();
     void updateMediaInfo();

@@ -4,7 +4,11 @@
 #include <QtQuickControls2>
 #include <QQmlContext>
 #include "Login.h"
-#include "VLCPlayerHandler.h"  // Make sure this path is correct
+#include "VLCPlayerHandler.h"  
+#include "MediaPlayer.h"
+
+
+
 
 int main(int argc, char* argv[])
 {
@@ -18,6 +22,8 @@ int main(int argc, char* argv[])
     // Register types with the correct template parameters
     qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");
     qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
+    qmlRegisterType<MediaPlayer>("com.ghoststream", 1, 0, "MediaPlayer");
+    qmlRegisterType<MediaPlayer>("com.ghoststream", 1, 0, "MediaPlayer");
 
     QQmlApplicationEngine engine;
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ghostclient/main.qml")));

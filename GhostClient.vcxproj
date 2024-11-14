@@ -76,6 +76,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     </PostBuildEvent>
     <ClCompile>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\VideoLAN.LibVLC.Windows.3.0.21\build\x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -90,6 +91,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     </PostBuildEvent>
     <ClCompile>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\VideoLAN.LibVLC.Windows.3.0.21\build\x64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
@@ -123,11 +125,14 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   <ItemGroup>
     <ClCompile Include="Login.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MediaPlayer.cpp" />
     <ClCompile Include="VLCPlayerHandler.cpp" />
     <None Include="CoverImage.qml" />
+    <None Include="MediaPlayer.qml" />
     <None Include="nav.qml" />
     <None Include="packages.config" />
-    <None Include="PlayerView.qml" />
+    <None Include="PlayerControls.qml" />
+    <None Include="VideoOutput.qml" />
     <QtRcc Include="qml.qrc" />
     <None Include="main.qml" />
     <QtRcc Include="resources.qrc" />
@@ -137,6 +142,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="VLCPlayerHandler.h" />
+    <QtMoc Include="MediaPlayer.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
