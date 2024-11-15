@@ -1,13 +1,14 @@
 #ifndef VLCPLAYERHANDLER_H
 #define VLCPLAYERHANDLER_H
 
+#include <vlc/vlc.h>
 #include <QObject>
 #include <QString>
 #include <QVideoSink>
 #include <QTimer>
 #include <QJsonObject>
 #include <QJsonDocument>
-#include <vlc/vlc.h>
+
 #include <QQuickItem>
 
 class VLCPlayerHandler : public QObject {
@@ -62,6 +63,32 @@ private:
     QString m_userId;
     QVideoSink* m_videoSink;
     QTimer* m_positionTimer;
+
+private slots:
+    void onPlaying() {
+        m_isPlaying = true;
+        emit playingStateChanged(true);
+    }
+
+    void onPaused() {
+        m_isPlaying = false;
+        emit playingStateChanged(false);
+    }
+
+    void onStopped() {
+        m_isPlaying = false;
+        emit playingStateChanged(false);
+    }
+
+    void onTimeChanged(qint64 newTime) {
+        emit positionChanged(newTime);
+    }
+
+    void onLengthChanged(qint64 newLength) {
+        emit durationChanged(newLength);
+    }
 };
+
+
 
 #endif // VLCPLAYERHANDLER_H
