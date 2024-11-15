@@ -52,9 +52,6 @@
     <QtMoc Include="MediaPlayer.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="WindowManager.cpp">
-      <Filter>Source Files</Filter>
-    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -84,9 +81,6 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="MediaPlayer.qml">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="VideoOutput.qml">
       <Filter>Source Files</Filter>
     </None>
     <None Include="PlayerControls.qml">

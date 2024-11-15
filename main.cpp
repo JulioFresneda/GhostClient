@@ -18,6 +18,9 @@ int main(int argc, char* argv[])
 
     QGuiApplication app(argc, argv);
     QQuickStyle::setStyle("Basic");
+    
+
+
 
     // Register types with the correct template parameters
     qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");

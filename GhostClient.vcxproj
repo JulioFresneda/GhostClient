@@ -48,7 +48,7 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>6.8.0_msvc2022_64</QtInstall>
-    <QtModules>core;gui;network;quick;quickcontrols2;multimedia;multimediawidgets</QtModules>
+    <QtModules>core;gui;network;quick;quickcontrols2;opengl;openglwidgets;multimedia;multimediawidgets</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
     <QtQMLDebugEnable>true</QtQMLDebugEnable>
   </PropertyGroup>
@@ -188,20 +188,11 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MediaPlayer.cpp" />
     <ClCompile Include="VLCPlayerHandler.cpp" />
-    <QtMoc Include="WindowManager.cpp">
-      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug2|x64'">input</DynamicSource>
-      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug2|x64'">%(Filename).moc</QtMocFileName>
-      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
-      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
-      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
-      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
-    </QtMoc>
     <None Include="CoverImage.qml" />
     <None Include="MediaPlayer.qml" />
     <None Include="nav.qml" />
     <None Include="packages.config" />
     <None Include="PlayerControls.qml" />
-    <None Include="VideoOutput.qml" />
     <QtRcc Include="qml.qrc" />
     <None Include="main.qml" />
     <QtRcc Include="resources.qrc" />

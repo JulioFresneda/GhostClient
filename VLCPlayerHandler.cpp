@@ -30,7 +30,8 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     const char* args[] = {
         "--no-video-title-show",      // Don't show video title
         "--no-xlib",      // Disable direct rendering
-        "--clock-jitter=0",// Reduce VLC's output
+        "--clock-jitter=0",// Reduce VLC's output,
+        "--no-mouse-events"
     };
 
     m_vlcInstance = libvlc_new(sizeof(args) / sizeof(*args), args);

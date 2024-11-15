@@ -309,9 +309,37 @@ Item {
                         isPlayerVisible = false
                         currentMediaId = ""
                     }
+                    
                 }
             }
         }
+
+        /*Window {
+            id: controlsWindow
+            visible: true
+            width: 400
+            height: 200
+            title: "Player Controls"
+        
+            Loader {
+                id: controlsLoader
+                anchors.fill: parent
+                source: "PlayerControls.qml"
+                onLoaded: {
+                    controlsLoader.item.playPauseClicked.connect(playerLoader.item.togglePlayPause)
+                    controlsLoader.item.positionRequested.connect(playerLoader.item.seek)
+                    controlsLoader.item.closeRequested.connect(() => controlsWindow.visible = false)
+                }
+            }
+        }
+        function updateControls() {
+            if (controlsLoader.item) {
+                controlsLoader.item.isPlaying = playerLoader.item.isPlaying
+                controlsLoader.item.position = playerLoader.item.position
+                controlsLoader.item.duration = playerLoader.item.duration
+                controlsLoader.item.title = playerLoader.item.title
+            }
+        }*/
     }
 
     // Components for grid and list items

@@ -21,7 +21,7 @@ Rectangle {
         height: 60
         width: parent.width
         color: "#80000000"
-        opacity: controlsVisible ? 1 : 0
+        opacity: 1 //controlsVisible ? 1 : 0
         
         Behavior on opacity {
             NumberAnimation { duration: 200 }
@@ -66,7 +66,7 @@ Rectangle {
         width: parent.width
         height: 80
         color: "#80000000"
-        opacity: controlsVisible ? 1 : 0
+        opacity: 1 //controlsVisible ? 1 : 0
         
         Behavior on opacity {
             NumberAnimation { duration: 200 }

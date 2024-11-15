@@ -43,12 +43,13 @@ Rectangle {
 
     Item {
         anchors.fill: parent
+        
 
         // Controls layer (underneath)
         Item {
             id: controlsLayer
             anchors.fill: parent
-            z: 1
+            z: 200
 
             Component.onCompleted: {
                 console.log("=== Controls Layer Completed ===")
@@ -118,6 +119,8 @@ Rectangle {
                         Button {
                             text: mediaPlayer.isPlaying ? "⏸" : "▶"
                             onClicked: {
+                                console.log("controlsVisible state:", controlsVisible)
+
                                 if (mediaPlayer.isPlaying) {
                                     mediaPlayer.pauseMedia()
                                 } else {
@@ -187,6 +190,18 @@ Rectangle {
             id: videoLayer
             anchors.fill: parent
             z: 2
+    
+            MouseArea {
+                id: interactionArea
+                anchors.fill: parent
+                z: 150
+                onClicked: {
+                    controlsTimer.restart()
+                    topControls.opacity = 1
+                    bottomControls.opacity = 1
+                }
+            }
+
 
             Component.onCompleted: {
                 console.log("=== Video Layer Completed ===")
@@ -196,6 +211,7 @@ Rectangle {
             VideoOutput {
                 id: videoOutput
                 anchors.fill: parent
+                z: -1
 
                 Component.onCompleted: {
                     console.log("=== VideoOutput Completed ===")
@@ -259,6 +275,7 @@ Rectangle {
     }
 
     function formatTime(ms) {
+
         let seconds = Math.floor(ms / 1000)
         let minutes = Math.floor(seconds / 60)
         seconds = seconds % 60
@@ -277,5 +294,15 @@ Rectangle {
 
     Component.onDestruction: {
         mediaPlayer.stop()
+    }
+
+    function togglePlayPause() {
+        isPlaying = !isPlaying
+        isPlayingChanged()
+    }
+
+    function seek(newPosition) {
+        position = newPosition
+        positionChanged()
     }
 }

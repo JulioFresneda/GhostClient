@@ -5,6 +5,5 @@
         <file>CoverImage.qml</file>
         <file>MediaPlayer.qml</file>
         <file>PlayerControls.qml</file>
-        <file>VideoOutput.qml</file>
     </qresource>
 </RCC>
