@@ -29,7 +29,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     // Initialize VLC with specific video output options
     const char* args[] = {
         "--no-video-title-show",      // Don't show video title
-        "--no-xlib",      // Disable direct rendering
+        //"--no-xlib",      // Disable direct rendering
         "--clock-jitter=0",// Reduce VLC's output,
         "--no-mouse-events"
     };
