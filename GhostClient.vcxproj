@@ -184,10 +184,9 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FFplayHandler.cpp" />
     <ClCompile Include="Login.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MediaPlayer.cpp" />
-    <ClCompile Include="VLCPlayerHandler.cpp" />
     <None Include="CoverImage.qml" />
     <None Include="MediaPlayer.qml" />
     <None Include="nav.qml" />
@@ -201,8 +200,8 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     <QtMoc Include="Login.h" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="VLCPlayerHandler.h" />
-    <QtMoc Include="MediaPlayer.h" />
+    <QtMoc Include="FFplayHandler.h" />
+    <QtMoc Include="NativeVideoWidget.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

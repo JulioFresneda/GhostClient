@@ -6,7 +6,8 @@
 #include "Login.h"
 #include "VLCPlayerHandler.h"  
 #include "MediaPlayer.h"
-
+#include "NativeVideoWidget.h"
+#include "FFplayHandler.h"
 
 
 
@@ -18,14 +19,12 @@ int main(int argc, char* argv[])
 
     QGuiApplication app(argc, argv);
     QQuickStyle::setStyle("Basic");
-    
-
-
 
     // Register types with the correct template parameters
     qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");
-    qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
-    qmlRegisterType<MediaPlayer>("com.ghoststream", 1, 0, "MediaPlayer");
+    qmlRegisterType<NativeVideoWidget>("com.ghoststream", 1, 0, "NativeVideoWidget");
+    qmlRegisterType<FFplayHandler>("com.ghoststream", 1, 0, "FFplayHandler");
+
 
     QQmlApplicationEngine engine;
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ghostclient/main.qml")));

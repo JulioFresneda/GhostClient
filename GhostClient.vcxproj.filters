@@ -35,10 +35,7 @@
     <ClCompile Include="Login.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MediaPlayer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="VLCPlayerHandler.cpp">
+    <ClCompile Include="FFplayHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -46,10 +43,10 @@
     <QtMoc Include="Login.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="VLCPlayerHandler.h">
+    <QtMoc Include="FFplayHandler.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="MediaPlayer.h">
+    <QtMoc Include="NativeVideoWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
