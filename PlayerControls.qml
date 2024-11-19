@@ -155,6 +155,24 @@ Window {
                             font.pixelSize: 24
                         }
                     }
+
+                    ComboBox {
+                        id: subtitleSelector
+                        Layout.preferredWidth: 150
+                        model: mediaPlayer.subtitleTracks
+                        textRole: "name"
+                        valueRole: "id"
+                        currentIndex: 0
+
+                        onActivated: {
+                            let trackId = currentValue  // This will be the track ID
+                            if (trackId === -1) {
+                                mediaPlayer.disableSubtitles()
+                            } else {
+                                mediaPlayer.setSubtitleTrack(trackId)
+                            }
+                        }
+                    }
                 }
             }
         }

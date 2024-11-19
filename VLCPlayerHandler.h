@@ -6,10 +6,9 @@
 #include <QString>
 #include <QVideoSink>
 #include <QTimer>
-#include <QJsonObject>
-#include <QJsonDocument>
-
 #include <QQuickItem>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 class VLCPlayerHandler : public QObject {
     Q_OBJECT
@@ -17,17 +16,20 @@ class VLCPlayerHandler : public QObject {
         Q_PROPERTY(qint64 position READ position WRITE setPosition NOTIFY positionChanged)
         Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY playingStateChanged)
         Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
-        
+        Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY subtitleTracksChanged)
 
 public:
     explicit VLCPlayerHandler(QObject* parent = nullptr);
     ~VLCPlayerHandler();
 
-    // Essential getters
     qint64 duration() const;
     qint64 position() const;
     bool isPlaying() const;
     QVideoSink* videoSink() const;
+    QVariantList subtitleTracks() const;
+
+    Q_INVOKABLE void setSubtitleTrack(int trackId);
+    Q_INVOKABLE void disableSubtitles();
 
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
@@ -45,24 +47,27 @@ signals:
     void errorOccurred(const QString& error);
     void mediaLoaded();
     void videoSinkChanged();
+    void subtitleTracksChanged();
 
 private:
-    
-    void initializeVLC();
     void cleanupVLC();
     void updateMediaInfo();
-    QString constructManifestUrl(const QString& mediaId);
     bool verifyVLCSetup();
+    void tryLoadSubtitle(const QString& mediaId, const QString& language);
+    void updateSubtitleTracks();
 
     libvlc_instance_t* m_vlcInstance;
     libvlc_media_player_t* m_mediaPlayer;
     libvlc_media_t* m_media;
-
+    QString m_currentMediaId;
     bool m_isPlaying;
     QString m_token;
     QString m_userId;
     QVideoSink* m_videoSink;
     QTimer* m_positionTimer;
+    QVariantList m_subtitleTracks;
+    QNetworkAccessManager m_networkManager;
+    int m_pendingSubtitles;
 };
 
 #endif // VLCPLAYERHANDLER_H

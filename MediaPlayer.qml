@@ -13,11 +13,8 @@ Rectangle {
 
     signal closeRequested
 
-    MediaPlayer {
-        id: mediaPlayerHandler
-        mediaId: root.mediaId
-        title: root.title
-    }
+    // Remove MediaPlayer component since we don't need it
+    // We'll use VLCPlayerHandler directly
 
     // Main video layer
     Item {
@@ -42,15 +39,15 @@ Rectangle {
                     if (root.mediaId) {
                         loadMedia(root.mediaId)
                         playMedia()
-                        initControls()
                     }
                 }
             }
         }
 
+        // Floating controls window loader
         Loader {
             id: controlsLoader
-            active: true
+            active: false
             sourceComponent: Component {
                 PlayerControls {
                     title: root.title
@@ -58,7 +55,6 @@ Rectangle {
                     position: mediaPlayer.position
                     duration: mediaPlayer.duration
                     parentWindow: root.Window.window
-                    visible: true
 
                     onPlayPauseClicked: {
                         if (mediaPlayer.isPlaying) {
@@ -80,22 +76,49 @@ Rectangle {
         }
     }
 
-    // Mouse area for play/pause toggle on video click
+    // Mouse area for showing/hiding controls
     MouseArea {
+        id: mouseArea
         anchors.fill: parent
-        onClicked: {
-            if (mediaPlayer.isPlaying) {
-                mediaPlayer.pauseMedia()
-            } else {
-                mediaPlayer.playMedia()
+        hoverEnabled: true
+        
+        property bool cursorVisible: true
+        
+        onPositionChanged: {
+            cursorTimer.restart()
+            if (controlsLoader.item) {
+                controlsLoader.item.visible = true
+            }
+            cursorVisible = true
+        }
+
+        Timer {
+            id: cursorTimer
+            interval: 3000
+            onTriggered: {
+                mouseArea.cursorVisible = false
+                if (controlsLoader.item && mediaPlayer.isPlaying) {
+                    controlsLoader.item.visible = true
+                }
             }
         }
+    }
+
+    Component.onCompleted: {
+        initControls()
     }
 
     Component.onDestruction: {
         mediaPlayer.stop()
         if (controlsLoader.item) {
             controlsLoader.item.close()
+        }
+    }
+
+    function initControls() {
+        if (!controlsLoader.active) {
+            controlsLoader.active = true
+            controlsLoader.item.visible = true
         }
     }
 }

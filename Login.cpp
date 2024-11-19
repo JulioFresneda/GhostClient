@@ -207,8 +207,8 @@ void Login::loadCoverImage(const QString& mediaId) {
         }
         else {
             emit coverImageError(mediaId);
-            qDebug() << "Failed to load cover for ID:" << mediaId
-                << "Error:" << reply->errorString();
+            //qDebug() << "Failed to load cover for ID:" << mediaId
+            //    << "Error:" << reply->errorString();
         }
         });
 }

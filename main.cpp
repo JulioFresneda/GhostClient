@@ -9,6 +9,14 @@
 
 
 
+// TODO
+// - Multiple audios, subtitles
+// - Controls design
+// - Load image
+// - Metadata
+// - Categories
+
+
 
 int main(int argc, char* argv[])
 {
