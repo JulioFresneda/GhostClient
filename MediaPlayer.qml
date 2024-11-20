@@ -1,124 +1,104 @@
-﻿import QtQuick
+﻿// MediaPlayer.qml
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
-import com.ghoststream 1.0
+import com.ghoststream
 
-Rectangle {
+Item {
     id: root
-    color: "black"
-
+    
     required property string mediaId
     required property string title
-
     signal closeRequested
 
-    // Remove MediaPlayer component since we don't need it
-    // We'll use VLCPlayerHandler directly
-
-    // Main video layer
-    Item {
+    // Main layout
+    ColumnLayout {
         anchors.fill: parent
+        spacing: 0
 
-        Item {
-            id: videoLayer
-            anchors.fill: parent
-            z: 1
+        // Video output area
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            color: "black"
 
+            // Video output
             VideoOutput {
                 id: videoOutput
                 anchors.fill: parent
-                z: 1
             }
 
-            VLCPlayerHandler {
-                id: mediaPlayer
+            // Media player
+            MediaPlayer {
+                id: player
+                mediaId: root.mediaId
+                title: root.title
                 videoSink: videoOutput.videoSink
 
-                Component.onCompleted: {
-                    if (root.mediaId) {
-                        loadMedia(root.mediaId)
-                        playMedia()
-                    }
+                onError: function(message) {
+                    console.error("Player error:", message)
                 }
+
+                onCloseRequested: {
+                    root.closeRequested()
+                }
+            }
+
+            // Close button
+            Button {
+                anchors {
+                    top: parent.top
+                    right: parent.right
+                    margins: 10
+                }
+                text: "×"
+                onClicked: player.closePlayer()
             }
         }
 
-        // Floating controls window loader
-        Loader {
-            id: controlsLoader
-            active: false
-            sourceComponent: Component {
-                PlayerControls {
-                    title: root.title
-                    isPlaying: mediaPlayer.isPlaying
-                    position: mediaPlayer.position
-                    duration: mediaPlayer.duration
-                    parentWindow: root.Window.window
+        // Controls area
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 60
+            color: "#1a1a1a"
 
-                    onPlayPauseClicked: {
-                        if (mediaPlayer.isPlaying) {
-                            mediaPlayer.pauseMedia()
+            RowLayout {
+                anchors {
+                    fill: parent
+                    margins: 10
+                }
+                spacing: 10
+
+                Button {
+                    text: "Play"
+                    onClicked: player.play()
+                }
+
+                Button {
+                    text: "Pause"
+                    onClicked: player.pause()
+                }
+
+                Button {
+                    text: "Stop"
+                    onClicked: player.stop()
+                }
+
+                ComboBox {
+                    Layout.preferredWidth: 150
+                    model: ["No Subtitles", "English", "Spanish"]
+                    onCurrentIndexChanged: {
+                        if (currentIndex === 0) {
+                            player.disableSubtitles()
                         } else {
-                            mediaPlayer.playMedia()
+                            player.setSubtitles(currentIndex - 1)
                         }
                     }
-
-                    onPositionRequested: (newPosition) => {
-                        mediaPlayer.setPosition(newPosition)
-                    }
-
-                    onCloseRequested: {
-                        root.closeRequested()
-                    }
                 }
+
+                Item { Layout.fillWidth: true } // Spacer
             }
-        }
-    }
-
-    // Mouse area for showing/hiding controls
-    MouseArea {
-        id: mouseArea
-        anchors.fill: parent
-        hoverEnabled: true
-        
-        property bool cursorVisible: true
-        
-        onPositionChanged: {
-            cursorTimer.restart()
-            if (controlsLoader.item) {
-                controlsLoader.item.visible = true
-            }
-            cursorVisible = true
-        }
-
-        Timer {
-            id: cursorTimer
-            interval: 3000
-            onTriggered: {
-                mouseArea.cursorVisible = false
-                if (controlsLoader.item && mediaPlayer.isPlaying) {
-                    controlsLoader.item.visible = true
-                }
-            }
-        }
-    }
-
-    Component.onCompleted: {
-        initControls()
-    }
-
-    Component.onDestruction: {
-        mediaPlayer.stop()
-        if (controlsLoader.item) {
-            controlsLoader.item.close()
-        }
-    }
-
-    function initControls() {
-        if (!controlsLoader.active) {
-            controlsLoader.active = true
-            controlsLoader.item.visible = true
         }
     }
 }

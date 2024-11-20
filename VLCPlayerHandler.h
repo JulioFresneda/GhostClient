@@ -1,33 +1,23 @@
 #ifndef VLCPLAYERHANDLER_H
 #define VLCPLAYERHANDLER_H
 
+#include <memory>
 #include <vlc/vlc.h>
 #include <QObject>
-#include <QString>
-#include <QVideoSink>
 #include <QTimer>
-#include <QQuickItem>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 
-class VLCPlayerHandler : public QObject {
+class VLCPlayerHandler : public QObject
+{
     Q_OBJECT
-        Q_PROPERTY(qint64 duration READ duration NOTIFY durationChanged)
-        Q_PROPERTY(qint64 position READ position WRITE setPosition NOTIFY positionChanged)
-        Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY playingStateChanged)
-        Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
-        Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY subtitleTracksChanged)
 
 public:
     explicit VLCPlayerHandler(QObject* parent = nullptr);
     ~VLCPlayerHandler();
 
-    qint64 duration() const;
-    qint64 position() const;
-    bool isPlaying() const;
-    QVideoSink* videoSink() const;
-    QVariantList subtitleTracks() const;
-
+    Q_INVOKABLE void setMedia(const QString& mediaUrl);
+    Q_INVOKABLE void play();
+    Q_INVOKABLE void pause();
+    Q_INVOKABLE void stop();
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void disableSubtitles();
     void startSubtitleMonitoring();
@@ -45,33 +35,15 @@ private slots:
     void onMediaStateChanged();
 
 signals:
-    void durationChanged(qint64 duration);
-    void positionChanged(qint64 position);
-    void playingStateChanged(bool isPlaying);
-    void errorOccurred(const QString& error);
-    void mediaLoaded();
-    void videoSinkChanged();
-    void subtitleTracksChanged();
+    void mediaStateChanged();
 
 private:
-    void cleanupVLC();
-    void updateMediaInfo();
-    bool verifyVLCSetup();
-    void tryLoadSubtitle(const QString& mediaId, const QString& language);
-    void updateSubtitleTracks();
+    void releaseMedia();
 
-    libvlc_instance_t* m_vlcInstance;
-    libvlc_media_player_t* m_mediaPlayer;
-    libvlc_media_t* m_media;
-    QString m_currentMediaId;
-    bool m_isPlaying;
-    QString m_token;
-    QString m_userId;
-    QVideoSink* m_videoSink;
-    QTimer* m_positionTimer;
-    QVariantList m_subtitleTracks;
-    QNetworkAccessManager m_networkManager;
-    int m_pendingSubtitles;
+    std::unique_ptr<libvlc_instance_t, void(*)(libvlc_instance_t*)> vlcInstance;
+    std::unique_ptr<libvlc_media_player_t, void(*)(libvlc_media_player_t*)> mediaPlayer;
+    libvlc_media_t* media;
+    QTimer* positionTimer;
 };
 
 #endif // VLCPLAYERHANDLER_H

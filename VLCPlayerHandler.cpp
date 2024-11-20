@@ -1,29 +1,12 @@
 #include "VLCPlayerHandler.h"
-#include <QCoreApplication>
-#include <QDir>
-#include <QSettings>
-#include <QUrl>
-#include <QUrlQuery>
-#include <QDebug>
-#include <QQuickWindow>
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#endif
-
-void vlcLogCallback(void* data, int level, const libvlc_log_t* ctx, const char* fmt, va_list args) {
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    qDebug() << "VLC Log [" << level << "]:" << buf;
-}
+#include <stdexcept>
 
 VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     : QObject(parent)
-    , m_vlcInstance(nullptr)
-    , m_mediaPlayer(nullptr)
-    , m_media(nullptr)
-    , m_isPlaying(false)
-    , m_videoSink(nullptr)
+    , vlcInstance(libvlc_new(0, nullptr), libvlc_release)
+    , mediaPlayer(nullptr, libvlc_media_player_release)
+    , media(nullptr)
+    , positionTimer(new QTimer(this))
 {
     QSettings settings("./conf.ini", QSettings::IniFormat);
     m_token = settings.value("authToken").toString();
@@ -48,13 +31,8 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
         return;
     }
 
-    m_mediaPlayer = libvlc_media_player_new(m_vlcInstance);
-    if (!m_mediaPlayer) {
-        qDebug() << "Failed to create media player";
-        libvlc_release(m_vlcInstance);
-        m_vlcInstance = nullptr;
-        return;
-    }
+    connect(positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::mediaStateChanged);
+}
 
     m_positionTimer = new QTimer(this);
     connect(m_positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaInfo);
@@ -63,124 +41,67 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     libvlc_log_set(m_vlcInstance, vlcLogCallback, nullptr);
 }
 
-VLCPlayerHandler::~VLCPlayerHandler() {
-    cleanupVLC();
-}
+void VLCPlayerHandler::setMedia(const QString& mediaUrl)
+{
+    releaseMedia();
+    media = libvlc_media_new_location(vlcInstance.get(), mediaUrl.toUtf8().constData());
 
-
-
-
-
-
-
-bool VLCPlayerHandler::verifyVLCSetup() {
-    if (!m_vlcInstance || !m_mediaPlayer) {
-        QString error = "VLC setup verification failed: ";
-        if (!m_vlcInstance) error += "VLC instance is null. ";
-        if (!m_mediaPlayer) error += "Media player is null. ";
-
-        qDebug() << error;
-        emit errorOccurred(error);
-        return false;
+    if (!media) {
+        throw std::runtime_error("Failed to set media");
     }
-    return true;
-}
 
-void VLCPlayerHandler::playMedia() {
-    if (m_mediaPlayer) {
-        libvlc_media_player_play(m_mediaPlayer);
-        m_isPlaying = true;
-        m_positionTimer->start();
-        emit playingStateChanged(true);
+    mediaPlayer.reset(libvlc_media_player_new_from_media(media));
+    if (!mediaPlayer) {
+        throw std::runtime_error("Failed to create VLC media player");
     }
 }
 
-void VLCPlayerHandler::pauseMedia() {
-    if (m_mediaPlayer) {
-        libvlc_media_player_pause(m_mediaPlayer);
-        m_isPlaying = false;
-        m_positionTimer->stop();
-        emit playingStateChanged(false);
+void VLCPlayerHandler::play()
+{
+    if (mediaPlayer) {
+        libvlc_media_player_play(mediaPlayer.get());
+        positionTimer->start(1000); // Update position every second
+        emit mediaStateChanged();
     }
 }
 
-void VLCPlayerHandler::stop() {
-    if (m_mediaPlayer) {
-        libvlc_media_player_stop(m_mediaPlayer);
-        m_isPlaying = false;
-        m_positionTimer->stop();
-        emit playingStateChanged(false);
+void VLCPlayerHandler::pause()
+{
+    if (mediaPlayer) {
+        libvlc_media_player_pause(mediaPlayer.get());
+        positionTimer->stop();
+        emit mediaStateChanged();
     }
 }
 
-void VLCPlayerHandler::updateMediaInfo() {
-    if (m_mediaPlayer) {
-        emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
-        emit durationChanged(libvlc_media_player_get_length(m_mediaPlayer));
+void VLCPlayerHandler::stop()
+{
+    if (mediaPlayer) {
+        libvlc_media_player_stop(mediaPlayer.get());
+        positionTimer->stop();
+        emit mediaStateChanged();
     }
 }
 
-void VLCPlayerHandler::cleanupVLC() {
-    if (m_media) {
-        libvlc_media_release(m_media);
-    }
-    if (m_mediaPlayer) {
-        libvlc_media_player_release(m_mediaPlayer);
-    }
-    if (m_vlcInstance) {
-        libvlc_release(m_vlcInstance);
+void VLCPlayerHandler::setSubtitleTrack(int trackId)
+{
+    if (mediaPlayer) {
+        libvlc_video_set_spu(mediaPlayer.get(), trackId);
     }
 }
 
-qint64 VLCPlayerHandler::duration() const {
-    return m_mediaPlayer ? (qint64)libvlc_media_player_get_length(m_mediaPlayer) : 0;
-}
-
-qint64 VLCPlayerHandler::position() const {
-    return m_mediaPlayer ? (qint64)libvlc_media_player_get_time(m_mediaPlayer) : 0;
-}
-
-bool VLCPlayerHandler::isPlaying() const {
-    return m_isPlaying;
-}
-
-void VLCPlayerHandler::setPosition(qint64 position) {
-    if (m_mediaPlayer) {
-        libvlc_media_player_set_time(m_mediaPlayer, position);
+void VLCPlayerHandler::disableSubtitles()
+{
+    if (mediaPlayer) {
+        libvlc_video_set_spu(mediaPlayer.get(), -1);
     }
 }
 
-QVideoSink* VLCPlayerHandler::videoSink() const {
-    return m_videoSink;
-}
-
-void VLCPlayerHandler::setVideoSink(QVideoSink* sink) {
-    if (m_videoSink == sink)
-        return;
-
-    m_videoSink = sink;
-
-    if (!m_videoSink || !m_mediaPlayer)
-        return;
-
-    auto videoOutput = m_videoSink->parent();
-    if (!videoOutput || !videoOutput->inherits("QQuickItem"))
-        return;
-
-    QQuickItem* quickVideoOutput = qobject_cast<QQuickItem*>(videoOutput);
-    if (!quickVideoOutput || !quickVideoOutput->window())
-        return;
-
-    if (!quickVideoOutput->window()->isVisible()) {
-        QMetaObject::Connection* connection = new QMetaObject::Connection;
-        *connection = connect(quickVideoOutput->window(), &QWindow::visibleChanged, this,
-            [this, quickVideoOutput, connection](bool visible) {
-                if (visible) {
-                    QObject::disconnect(*connection);
-                    delete connection;
-                    attachVideoOutput(quickVideoOutput);
-                }
-            });
+void VLCPlayerHandler::releaseMedia()
+{
+    if (media) {
+        libvlc_media_release(media);
+        media = nullptr;
     }
     else {
         attachVideoOutput(quickVideoOutput);
