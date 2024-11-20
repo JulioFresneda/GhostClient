@@ -165,6 +165,7 @@ Window {
                         currentIndex: 0
 
                         onActivated: {
+                            
                             let trackId = currentValue  // This will be the track ID
                             if (trackId === -1) {
                                 mediaPlayer.disableSubtitles()

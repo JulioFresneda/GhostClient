@@ -30,6 +30,7 @@ public:
 
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void disableSubtitles();
+    void startSubtitleMonitoring();
 
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
@@ -39,6 +40,9 @@ public slots:
     void pauseMedia();
     void loadMedia(const QString& mediaId);
     void stop();
+
+private slots:
+    void onMediaStateChanged();
 
 signals:
     void durationChanged(qint64 duration);
