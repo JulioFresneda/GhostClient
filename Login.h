@@ -23,7 +23,7 @@ public:
 
     Q_INVOKABLE void fetchUserProfile();
     Q_INVOKABLE void fetchMediaData();
-    Q_INVOKABLE void fetchUserData();
+    Q_INVOKABLE void fetchMediaMetadata();
 
 public slots:
     void loadCoverImage(const QString& mediaId);
@@ -34,7 +34,7 @@ signals:
     void profileAdded();
     void profileSelected();
     void mediaDataFetched(const QVariantMap& mediaData);
-    void userDataFetched(const QVariantMap& userData);
+    void mediaMetadataFetched(const QVariantList& mediaMetadata);
     void coverImageLoaded(const QString& mediaId, const QString& base64Data);
     void coverImageError(const QString& mediaId);
 

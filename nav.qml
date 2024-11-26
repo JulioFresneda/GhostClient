@@ -14,8 +14,9 @@ Item {
     // Properties for data management
     property var collectionsData: []
     property var mediaData: []
+    property var mediaMetadata: []
     property var filteredData: []
-    property string currentCategory: "all"
+    property string currentCategory: "series"
     property bool isGridView: true
     property string selectedCollectionId: ""
     property string selectedCollectionTitle: ""
@@ -69,7 +70,7 @@ Item {
 
                 // Categories
                 Repeater {
-                    model: ["All", "Series", "Movies"]
+                    model: ["Series", "Movies"]
                     delegate: ItemDelegate {
                         Layout.fillWidth: true
                         height: 48
@@ -180,7 +181,7 @@ Item {
                         id: groupMoviesCheck
                         text: "Group by Collection"
                         visible: currentCategory === "movies"
-                        checked: false
+                        checked: true
 
                         contentItem: Text {
                             text: groupMoviesCheck.text
@@ -314,32 +315,7 @@ Item {
             }
         }
 
-        /*Window {
-            id: controlsWindow
-            visible: true
-            width: 400
-            height: 200
-            title: "Player Controls"
         
-            Loader {
-                id: controlsLoader
-                anchors.fill: parent
-                source: "PlayerControls.qml"
-                onLoaded: {
-                    controlsLoader.item.playPauseClicked.connect(playerLoader.item.togglePlayPause)
-                    controlsLoader.item.positionRequested.connect(playerLoader.item.seek)
-                    controlsLoader.item.closeRequested.connect(() => controlsWindow.visible = false)
-                }
-            }
-        }
-        function updateControls() {
-            if (controlsLoader.item) {
-                controlsLoader.item.isPlaying = playerLoader.item.isPlaying
-                controlsLoader.item.position = playerLoader.item.position
-                controlsLoader.item.duration = playerLoader.item.duration
-                controlsLoader.item.title = playerLoader.item.title
-            }
-        }*/
     }
 
     // Components for grid and list items
@@ -383,6 +359,43 @@ Item {
             font.pointSize: 12
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
+        }
+
+        // Progress bar
+        Rectangle {
+            id: progressBar
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                margins: 8
+            }
+            height: 4
+            radius: 2
+            color: "#333333"  // Dark background for progress bar
+
+            Rectangle {
+                id: progressFill
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    bottom: parent.bottom
+                }
+                width: parent.width * getMediaProgress(card.mediaId)
+                color: colors.primary
+                radius: 2
+
+                // Smooth animation for width changes
+                Behavior on width {
+                    NumberAnimation {
+                        duration: 300
+                        easing.type: Easing.OutQuad
+                    }
+                }
+            }
+
+            // Only show if there's progress
+            visible: getMediaProgress(card.mediaId) > 0
         }
 
         MouseArea {
@@ -589,6 +602,19 @@ Item {
     Connections {
         target: loginManager
 
+        function onMediaMetadataFetched(metadata) {
+            let metadataMap = {};
+            const metadataArray = metadata || [];
+        
+            for (let i = 0; i < metadataArray.length; i++) {
+                const meta = metadataArray[i];
+                metadataMap[meta.mediaID] = meta;
+            }
+        
+            root.mediaMetadata = metadataMap;
+            console.log("Loaded media metadata:", Object.keys(root.mediaMetadata).length);
+        }
+
         function onMediaDataFetched(fetchedData) {
             console.log("Received media data:", JSON.stringify(fetchedData, null, 2))
 
@@ -604,6 +630,21 @@ Item {
 
             // Initial filtering
             filterContent()
+
+            loginManager.fetchMediaMetadata()
+
+            
         }
+    }
+
+    function getMediaProgress(mediaId) {
+        if (!mediaMetadata || !mediaId) return 0;
+    
+        const meta = mediaMetadata[mediaId];
+        if (meta && meta.percentage_watched) {
+            const percentage = parseFloat(meta.percentage_watched);
+            return isNaN(percentage) ? 0 : percentage;
+        }
+        return 0;
     }
 }

@@ -165,8 +165,8 @@ void Login::fetchMediaData() {
 }
 
 
-void Login::fetchUserData() {
-    QUrl url("http://localhost:18080/download/user_metadata");
+void Login::fetchMediaMetadata() {
+    QUrl url("http://localhost:18080/download/media_metadata");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
@@ -178,12 +178,32 @@ void Login::fetchUserData() {
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(json).toJson());
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
-            QJsonDocument responseDoc = QJsonDocument::fromJson(reply->readAll());
-            emit userDataFetched(responseDoc.object().toVariantMap());
+            QByteArray responseData = reply->readAll();
+            QJsonDocument responseDoc = QJsonDocument::fromJson(responseData);
+            QJsonObject rootObj = responseDoc.object();
+
+            QVariantList mediaMetadata; // Store the list of JSON objects
+
+            // If "mediaMetadata" exists, extract it as a list of JSON objects
+            if (rootObj.contains("mediaMetadata") && rootObj["mediaMetadata"].isArray()) {
+                mediaMetadata = rootObj["mediaMetadata"].toArray().toVariantList();
+            }
+
+            qDebug() << "\n=== Media Metadata Response ===";
+            QJsonDocument formattedDoc(rootObj);
+            qDebug().noquote() << formattedDoc.toJson(QJsonDocument::Indented);
+            qDebug() << "=== End Media Metadata Response ===\n";
+
+            emit mediaMetadataFetched(mediaMetadata); // Emit the list directly
+        }
+        else {
+            qDebug() << "Network error:" << reply->errorString();
+            qDebug() << "HTTP status code:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         }
         reply->deleteLater();
         });
 }
+
 
 // Login.cpp
 void Login::loadCoverImage(const QString& mediaId) {
