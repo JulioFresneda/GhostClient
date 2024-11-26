@@ -32,6 +32,10 @@ public:
     Q_INVOKABLE void disableSubtitles();
     void startSubtitleMonitoring();
 
+    Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY audioTracksChanged)
+    QVariantList audioTracks() const;
+    Q_INVOKABLE void setAudioTrack(int trackId);
+
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
     void setPosition(qint64 position);
@@ -52,13 +56,15 @@ signals:
     void mediaLoaded();
     void videoSinkChanged();
     void subtitleTracksChanged();
+    void audioTracksChanged();
 
 private:
     void cleanupVLC();
     void updateMediaInfo();
     bool verifyVLCSetup();
-    void tryLoadSubtitle(const QString& mediaId, const QString& language);
+    bool tryLoadSubtitle(const QString& mediaId, const QString& language);
     void updateSubtitleTracks();
+    void updateAudioTracks();
 
     libvlc_instance_t* m_vlcInstance;
     libvlc_media_player_t* m_mediaPlayer;
@@ -70,6 +76,7 @@ private:
     QVideoSink* m_videoSink;
     QTimer* m_positionTimer;
     QVariantList m_subtitleTracks;
+    QVariantList m_audioTracks;
     QNetworkAccessManager m_networkManager;
     int m_pendingSubtitles;
 };

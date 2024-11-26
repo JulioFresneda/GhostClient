@@ -73,46 +73,64 @@ Window {
                         font.pixelSize: 12
                     }
 
-                    Slider {
-                        id: progressSlider
+                    Item {
                         Layout.fillWidth: true
-                        from: 0
-                        to: Math.max(1, duration)
-                        value: isDragging ? value : position
-                        
-                        onPressedChanged: {
-                            if (!pressed && value !== position) {
-                                isDragging = false
-                                positionRequested(value)
-                            } else {
-                                isDragging = pressed
-                            }
-                        }
+                        height: 20
 
-                        background: Rectangle {
-                            x: progressSlider.leftPadding
-                            y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                            width: progressSlider.availableWidth
+                        Rectangle {
+                            id: progressBar
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
                             height: 4
-                            radius: 2
                             color: "#808080"
+                            radius: 2
 
                             Rectangle {
-                                width: progressSlider.visualPosition * parent.width
+                                width: duration > 0 ? (position / duration) * parent.width : 0
                                 height: parent.height
-                                color: "#1DB954"
+                                color: mouseArea.pressed ? "#1ED760" : "#1DB954"
                                 radius: 2
                             }
                         }
 
-                        handle: Rectangle {
-                            x: progressSlider.leftPadding + progressSlider.visualPosition 
-                               * (progressSlider.availableWidth - width)
-                            y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                            width: 16
-                            height: 16
-                            radius: 8
-                            color: "#1DB954"
+                        Rectangle {
+                            id: handle
+                            x: duration > 0 ? (position / duration) * (parent.width - width) : 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: mouseArea.pressed ? 20 : 16
+                            height: width
+                            radius: width / 2
+                            color: mouseArea.pressed ? "#1ED760" : "#1DB954"
+
+                            Behavior on width {
+                                NumberAnimation { duration: 100 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: mouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            onMouseXChanged: {
+                                if (pressed) {
+                                    console.log("Mouse dragged:", mouseX)
+                                    let newPosition = (mouseX / width) * duration
+                                    position = Math.max(0, Math.min(newPosition, duration))
+                                }
+                            }
+
+                            onPressed: {
+                                console.log("Mouse pressed:", mouseX)
+                                let newPosition = (mouseX / width) * duration
+                                position = Math.max(0, Math.min(newPosition, duration))
+                                positionRequested(position)
+                            }
+
+                            onReleased: {
+                                console.log("Mouse released:", mouseX)
+                                positionRequested(position)
+                            }
                         }
                     }
 
@@ -156,6 +174,26 @@ Window {
                         }
                     }
 
+                    Text {
+                        text: "Audio:"
+                        color: "white"
+                        font.pixelSize: 12
+                    }
+
+                    ComboBox {
+                        id: audioSelector
+                        Layout.preferredWidth: 150
+                        model: mediaPlayer.audioTracks
+                        textRole: "name"
+                        valueRole: "id"
+                        currentIndex: 0
+
+                        onActivated: {
+                            let trackId = currentValue
+                            mediaPlayer.setAudioTrack(trackId)
+                        }
+                    }
+
                     ComboBox {
                         id: subtitleSelector
                         Layout.preferredWidth: 150
@@ -174,6 +212,8 @@ Window {
                             }
                         }
                     }
+
+                    
                 }
             }
         }

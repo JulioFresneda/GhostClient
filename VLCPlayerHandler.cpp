@@ -32,11 +32,12 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     const char* args[] = {
         //"--no-video-title-show",
         //"--clock-jitter=0",
-        //"--no-mouse-events",
+        "--no-mouse-events",
         //"--input-fast-seek",
         //"--network-caching=1000",
         //"--adaptive-maxwidth=1920",
-        "--verbose=3",
+        //"--verbose=0",
+        "--quiet"
         //"--file-logging",             // Enable file logging
         //"--logfile=C:\\Users\\julio\\Documents\\vlc-log.txt"
     };
@@ -58,7 +59,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
 
     m_positionTimer = new QTimer(this);
     connect(m_positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaInfo);
-    m_positionTimer->setInterval(10000);
+    m_positionTimer->setInterval(10);
 
     libvlc_log_set(m_vlcInstance, vlcLogCallback, nullptr);
 }
@@ -86,11 +87,51 @@ bool VLCPlayerHandler::verifyVLCSetup() {
     return true;
 }
 
+void VLCPlayerHandler::setPosition(qint64 position) {
+    if (!m_mediaPlayer) return;
+
+    // Get current state
+    libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
+    if (state != libvlc_Playing && state != libvlc_Paused) {
+        qDebug() << "Invalid state for seeking:" << state;
+        return;
+    }
+
+    // Get media duration
+    libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
+    if (duration <= 0) {
+        qDebug() << "Invalid duration:" << duration;
+        return;
+    }
+
+    // Ensure position is within bounds
+    position = qBound(0LL, position, (qint64)duration);
+
+    // For DASH streaming, we need to use precise seeking
+    float percentage = static_cast<float>(position) / duration;
+    libvlc_media_player_set_position(m_mediaPlayer, percentage);
+
+    qDebug() << "Seeking to position:" << position
+        << "Duration:" << duration
+        << "Percentage:" << percentage;
+
+    // Force a state update
+    if (m_isPlaying) {
+        libvlc_media_player_play(m_mediaPlayer);
+        if (!m_positionTimer->isActive()) {
+            m_positionTimer->start();
+        }
+    }
+
+    // Emit the position change
+    emit positionChanged(position);
+}
+
 void VLCPlayerHandler::playMedia() {
     if (m_mediaPlayer) {
         libvlc_media_player_play(m_mediaPlayer);
         m_isPlaying = true;
-        m_positionTimer->start();
+        m_positionTimer->start(); // Start the timer when playing
         emit playingStateChanged(true);
     }
 }
@@ -99,8 +140,11 @@ void VLCPlayerHandler::pauseMedia() {
     if (m_mediaPlayer) {
         libvlc_media_player_pause(m_mediaPlayer);
         m_isPlaying = false;
-        m_positionTimer->stop();
+        m_positionTimer->stop(); // Stop the timer when paused
         emit playingStateChanged(false);
+
+        // Emit one final position update
+        emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
     }
 }
 
@@ -108,15 +152,31 @@ void VLCPlayerHandler::stop() {
     if (m_mediaPlayer) {
         libvlc_media_player_stop(m_mediaPlayer);
         m_isPlaying = false;
-        m_positionTimer->stop();
+        m_positionTimer->stop(); // Stop the timer when stopped
         emit playingStateChanged(false);
+
+        // Reset position to 0
+        emit positionChanged(0);
     }
 }
 
 void VLCPlayerHandler::updateMediaInfo() {
-    if (m_mediaPlayer) {
-        emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
-        emit durationChanged(libvlc_media_player_get_length(m_mediaPlayer));
+    if (!m_mediaPlayer) return;
+
+    libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
+    if (state == libvlc_Playing || state == libvlc_Paused) {
+        libvlc_time_t currentTime = libvlc_media_player_get_time(m_mediaPlayer);
+        libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
+        float position = libvlc_media_player_get_position(m_mediaPlayer);
+
+        //qDebug() << "Media Info - Time:" << currentTime
+        //    << "Duration:" << duration
+        //    << "Position:" << position;
+
+        if (currentTime >= 0 && duration > 0) {
+            emit positionChanged(currentTime);
+            emit durationChanged(duration);
+        }
     }
 }
 
@@ -144,11 +204,7 @@ bool VLCPlayerHandler::isPlaying() const {
     return m_isPlaying;
 }
 
-void VLCPlayerHandler::setPosition(qint64 position) {
-    if (m_mediaPlayer) {
-        libvlc_media_player_set_time(m_mediaPlayer, position);
-    }
-}
+
 
 QVideoSink* VLCPlayerHandler::videoSink() const {
     return m_videoSink;
@@ -262,13 +318,19 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId) {
         playMedia();
 
         // Load subtitles synchronously
-        tryLoadSubtitle(mediaId, "en");
-        tryLoadSubtitle(mediaId, "es");
+        bool enExternalSubs = tryLoadSubtitle(mediaId, "en");
+        bool esExternalSubs = tryLoadSubtitle(mediaId, "es");
 
 
 
+        if (enExternalSubs or esExternalSubs) {
+            startSubtitleMonitoring();
+        }
+        
 
-        startSubtitleMonitoring();
+        QTimer::singleShot(1000, this, [this]() {
+            updateAudioTracks();
+            });
 
         emit mediaLoaded();
 
@@ -282,13 +344,29 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId) {
     }
 }
 
-void VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& language) {
+bool VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& language) {
     QUrl url(QString("http://127.0.0.1:18080/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
+
+    // Check if the URL exists and returns 200
+    QNetworkAccessManager manager;
+    QNetworkRequest request(url);
+    QEventLoop loop;
+
+    QNetworkReply* reply = manager.get(request);
+    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec(); // Wait for the reply to finish
+
+    int httpStatusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (reply->error() != QNetworkReply::NoError || httpStatusCode != 200) {
+        qWarning() << "Subtitle URL does not exist or returned an error. Status code:" << httpStatusCode;
+        reply->deleteLater();
+        return false;
+    }
+
+    reply->deleteLater();
 
     if (m_mediaPlayer) {
         // Store subtitle information
-
-
         QByteArray urlBytes = url.toString().toUtf8();
         const char* charurl = urlBytes.constData();
 
@@ -301,17 +379,18 @@ void VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& la
         );
         qDebug() << "Result of adding subtitle:" << result;
 
-
-
         if (result == 0) {
             qDebug() << "Added subtitle track:" << language;
+            return true;
         }
         else {
             qWarning() << "Failed to add subtitle track:" << language << "Error code:" << result;
+            return false;
         }
     }
     else {
         qWarning() << "Media player is not initialized.";
+        return false;
     }
 }
 
@@ -455,6 +534,12 @@ void VLCPlayerHandler::onMediaStateChanged() {
             updateSubtitleTracks();
             return;  // Stop further checks if successful
         }
+
+        int audioTrackCount = libvlc_audio_get_track_count(m_mediaPlayer);
+        if (audioTrackCount > 0) {
+            updateAudioTracks();
+        }
+        QTimer::singleShot(500, this, &VLCPlayerHandler::onMediaStateChanged);
     }
 
     // Recheck until loaded
@@ -465,3 +550,38 @@ void VLCPlayerHandler::startSubtitleMonitoring() {
     // Trigger state monitoring
     onMediaStateChanged();
 }
+
+QVariantList VLCPlayerHandler::audioTracks() const {
+    return m_audioTracks;
+}
+
+void VLCPlayerHandler::updateAudioTracks() {
+    m_audioTracks.clear();
+
+    if (!m_mediaPlayer) return;
+
+    libvlc_track_description_t* tracks = libvlc_audio_get_track_description(m_mediaPlayer);
+    libvlc_track_description_t* currentTrack = tracks;
+
+    while (currentTrack) {
+        QVariantMap trackInfo;
+        trackInfo["id"] = currentTrack->i_id;
+        trackInfo["name"] = QString::fromUtf8(currentTrack->psz_name);
+        m_audioTracks.append(trackInfo);
+        currentTrack = currentTrack->p_next;
+    }
+
+    if (tracks) {
+        libvlc_track_description_list_release(tracks);
+    }
+
+    emit audioTracksChanged();
+}
+
+void VLCPlayerHandler::setAudioTrack(int trackId) {
+    if (!m_mediaPlayer) return;
+
+    libvlc_audio_set_track(m_mediaPlayer, trackId);
+    qDebug() << "Setting audio track to:" << trackId;
+}
+

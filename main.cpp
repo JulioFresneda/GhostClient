@@ -10,7 +10,7 @@
 
 
 // TODO
-// - Multiple audios, subtitles
+// - Multiple audios, subtitles - OK
 // - Controls design
 // - Load image
 // - Metadata
