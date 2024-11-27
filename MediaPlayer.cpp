@@ -17,7 +17,7 @@ void MediaPlayer::setMediaId(const QString& mediaId) {
     if (m_mediaId != mediaId) {
         m_mediaId = mediaId;
         if (!mediaId.isEmpty()) {
-            m_vlcPlayer->loadMedia(mediaId);
+            //m_vlcPlayer->loadMedia(mediaId);
         }
         emit mediaIdChanged();
     }
@@ -47,7 +47,7 @@ void MediaPlayer::setPosition(qint64 position) {
 }
 
 void MediaPlayer::play() {
-    m_vlcPlayer->playMedia();
+    m_vlcPlayer->playMedia(0);
 }
 
 void MediaPlayer::pause() {

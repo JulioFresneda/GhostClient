@@ -306,6 +306,7 @@ Item {
                 MediaPlayer {
                     mediaId: currentMediaId
                     title: selectedCollectionTitle
+                    mediaMetadata: root.mediaMetadata[currentMediaId]
                     onCloseRequested: {
                         isPlayerVisible = false
                         currentMediaId = ""

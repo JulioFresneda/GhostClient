@@ -117,20 +117,32 @@ void VLCPlayerHandler::setPosition(qint64 position) {
 
     // Force a state update
     if (m_isPlaying) {
-        libvlc_media_player_play(m_mediaPlayer);
-        if (!m_positionTimer->isActive()) {
-            m_positionTimer->start();
-        }
+        //libvlc_media_player_play(m_mediaPlayer);
+        //if (!m_positionTimer->isActive()) {
+        //    m_positionTimer->start();
+        //}
     }
 
     // Emit the position change
+    m_positionTimer->start();
     emit positionChanged(position);
 }
 
-void VLCPlayerHandler::playMedia() {
+void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
     if (m_mediaPlayer) {
         libvlc_media_player_play(m_mediaPlayer);
+        libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
+        while (!(state == libvlc_Playing || state == libvlc_Paused)) {
+            state = libvlc_media_player_get_state(m_mediaPlayer);;
+        }
         m_isPlaying = true;
+        if (percentage_watched > 0.0) {
+            libvlc_media_player_set_position(m_mediaPlayer, percentage_watched);
+            libvlc_time_t currentTime = libvlc_media_player_get_time(m_mediaPlayer);
+            libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
+            float position = libvlc_media_player_get_position(m_mediaPlayer);
+            emit positionChanged(currentTime);
+        }
         m_positionTimer->start(); // Start the timer when playing
         emit playingStateChanged(true);
     }
@@ -169,9 +181,9 @@ void VLCPlayerHandler::updateMediaInfo() {
         libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
         float position = libvlc_media_player_get_position(m_mediaPlayer);
 
-        //qDebug() << "Media Info - Time:" << currentTime
-        //    << "Duration:" << duration
-        //    << "Position:" << position;
+        qDebug() << "Media Info - Time:" << currentTime
+            << "Duration:" << duration
+            << "Position:" << position;
 
         if (currentTime >= 0 && duration > 0) {
             emit positionChanged(currentTime);
@@ -282,12 +294,17 @@ struct SubtitleTrack {
 QList<SubtitleTrack> m_loadedSubtitles;
 int m_nextSubtitleId;
 
+
 // In VLCPlayerHandler.cpp:
-void VLCPlayerHandler::loadMedia(const QString& mediaId) {
+void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata) {
     if (!verifyVLCSetup()) {
         return;
     }
-
+    float percentage_watched = 0;
+    if (!mediaMetadata.isEmpty()) {
+        percentage_watched = mediaMetadata.value("percentage_watched").toFloat();
+    }
+    
     m_currentMediaId = mediaId;
     m_subtitleTracks.clear();
     m_loadedSubtitles.clear();
@@ -313,18 +330,24 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId) {
         //libvlc_media_add_option(m_media, ":demux=adaptive");
         libvlc_media_add_option(m_media, ":adaptive-formats=dash");
 
+        
+
         libvlc_media_player_set_media(m_mediaPlayer, m_media);
 
-        playMedia();
+        bool esExternalSubs = tryLoadSubtitle(mediaId, "es");
+        bool enExternalSubs = tryLoadSubtitle(mediaId, "en");
+        
+        playMedia(percentage_watched);
+
+        
 
         // Load subtitles synchronously
-        bool enExternalSubs = tryLoadSubtitle(mediaId, "en");
-        bool esExternalSubs = tryLoadSubtitle(mediaId, "es");
+        
 
 
 
         if (enExternalSubs or esExternalSubs) {
-            startSubtitleMonitoring();
+            updateSubtitleTracks();
         }
         
 
@@ -371,6 +394,7 @@ bool VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& la
         const char* charurl = urlBytes.constData();
 
         qDebug() << charurl;
+        libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
         int result = libvlc_media_player_add_slave(
             m_mediaPlayer,
             libvlc_media_slave_type_subtitle,
@@ -405,7 +429,7 @@ void VLCPlayerHandler::updateSubtitleTracks() {
     noneTrack["name"] = "No subtitles";
     m_subtitleTracks.append(noneTrack);
 
-
+    libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
     libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
     libvlc_track_description_t* currentTrack = tracks;
 

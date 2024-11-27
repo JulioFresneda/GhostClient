@@ -40,9 +40,9 @@ public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
     void setPosition(qint64 position);
     void setVideoSink(QVideoSink* sink);
-    void playMedia();
+    void playMedia(float percentage_watched);
     void pauseMedia();
-    void loadMedia(const QString& mediaId);
+    void loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata);
     void stop();
 
 private slots:
@@ -66,6 +66,8 @@ private:
     void updateSubtitleTracks();
     void updateAudioTracks();
 
+    void fetchMediaMetadata();
+
     libvlc_instance_t* m_vlcInstance;
     libvlc_media_player_t* m_mediaPlayer;
     libvlc_media_t* m_media;
@@ -79,6 +81,9 @@ private:
     QVariantList m_audioTracks;
     QNetworkAccessManager m_networkManager;
     int m_pendingSubtitles;
+
+    double last_percentage_watched;
+
 };
 
 #endif // VLCPLAYERHANDLER_H

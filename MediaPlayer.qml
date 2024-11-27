@@ -10,6 +10,7 @@ Rectangle {
 
     required property string mediaId
     required property string title
+    required property var mediaMetadata
 
     signal closeRequested
 
@@ -37,8 +38,20 @@ Rectangle {
 
                 Component.onCompleted: {
                     if (root.mediaId) {
-                        loadMedia(root.mediaId)
-                        playMedia()
+                        console.log(root.mediaMetadata)
+                        if (root.mediaMetadata !== undefined) { 
+                            loadMedia(root.mediaId, root.mediaMetadata)
+                        }
+                        else {
+                            loadMedia(root.mediaId, {})
+                        }
+                        if (root.mediaMetadata !== undefined) { 
+                            //playMedia(root.mediaMetadata.percentage_watched)
+                        }
+                        else {
+                            //playMedia(0)
+                        }
+                        
                     }
                 }
             }
@@ -60,7 +73,7 @@ Rectangle {
                         if (mediaPlayer.isPlaying) {
                             mediaPlayer.pauseMedia()
                         } else {
-                            mediaPlayer.playMedia()
+                            mediaPlayer.playMedia(0)
                         }
                     }
 
