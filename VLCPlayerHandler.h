@@ -18,6 +18,7 @@ class VLCPlayerHandler : public QObject {
         Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
         Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY subtitleTracksChanged)
 
+
 public:
     explicit VLCPlayerHandler(QObject* parent = nullptr);
     ~VLCPlayerHandler();
@@ -35,6 +36,10 @@ public:
     Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY audioTracksChanged)
     QVariantList audioTracks() const;
     Q_INVOKABLE void setAudioTrack(int trackId);
+
+    Q_INVOKABLE void setFullScreen(bool fullScreen);
+
+    bool eventFilter(QObject* obj, QEvent* event) override;
 
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
@@ -83,6 +88,11 @@ private:
     int m_pendingSubtitles;
 
     double last_percentage_watched;
+
+    QWindow* m_vlcWindow;
+    QWindow* mainWindow;
+
+    bool fullScreen;
 
 };
 

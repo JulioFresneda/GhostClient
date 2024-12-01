@@ -32,7 +32,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     const char* args[] = {
         //"--no-video-title-show",
         //"--clock-jitter=0",
-        "--no-mouse-events",
+        //"--no-mouse-events",
         //"--input-fast-seek",
         //"--network-caching=1000",
         //"--adaptive-maxwidth=1920",
@@ -90,42 +90,21 @@ bool VLCPlayerHandler::verifyVLCSetup() {
 void VLCPlayerHandler::setPosition(qint64 position) {
     if (!m_mediaPlayer) return;
 
-    // Get current state
-    libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
-    if (state != libvlc_Playing && state != libvlc_Paused) {
-        qDebug() << "Invalid state for seeking:" << state;
-        return;
-    }
-
     // Get media duration
     libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
-    if (duration <= 0) {
-        qDebug() << "Invalid duration:" << duration;
-        return;
-    }
-
-    // Ensure position is within bounds
-    position = qBound(0LL, position, (qint64)duration);
 
     // For DASH streaming, we need to use precise seeking
     float percentage = static_cast<float>(position) / duration;
+
     libvlc_media_player_set_position(m_mediaPlayer, percentage);
 
     qDebug() << "Seeking to position:" << position
         << "Duration:" << duration
         << "Percentage:" << percentage;
 
-    // Force a state update
-    if (m_isPlaying) {
-        //libvlc_media_player_play(m_mediaPlayer);
-        //if (!m_positionTimer->isActive()) {
-        //    m_positionTimer->start();
-        //}
-    }
+    
 
-    // Emit the position change
-    m_positionTimer->start();
-    emit positionChanged(position);
+    //emit positionChanged(position);
 }
 
 void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
@@ -181,13 +160,13 @@ void VLCPlayerHandler::updateMediaInfo() {
         libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
         float position = libvlc_media_player_get_position(m_mediaPlayer);
 
-        qDebug() << "Media Info - Time:" << currentTime
-            << "Duration:" << duration
-            << "Position:" << position;
+        //qDebug() << "Media Info - Time:" << currentTime
+        //    << "Duration:" << duration
+        //    << "Position:" << position;
 
         if (currentTime >= 0 && duration > 0) {
             emit positionChanged(currentTime);
-            emit durationChanged(duration);
+            
         }
     }
 }
@@ -257,25 +236,94 @@ void VLCPlayerHandler::setVideoSink(QVideoSink* sink) {
     emit videoSinkChanged();
 }
 
+// In your VLCPlayerHandler class
 void VLCPlayerHandler::attachVideoOutput(QQuickItem* videoOutput) {
     if (!videoOutput || !videoOutput->window())
         return;
 
-    QWindow* window = videoOutput->window();
+    // Create a child window that will host the VLC content
+    m_vlcWindow = new QWindow(videoOutput->window());
 
+    // Get the main window's size and global position
+    mainWindow = videoOutput->window();
+    QRect mainRect = mainWindow->geometry();
+    QPointF pos = mainWindow->position();
+
+    // Set initial geometry to full size minus 160 pixels height
+    int adjustedHeight = mainRect.height() - 160;
+    if (adjustedHeight < 0) {
+        qWarning() << "Adjusted height is negative, setting to minimum height of 10.";
+        adjustedHeight = 10; // Prevent negative or zero height
+    }
+
+    // Set the child window's geometry
+    m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
+    m_vlcWindow->setFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    m_vlcWindow->show();
+
+    QCoreApplication::instance()->installEventFilter(this);
+
+
+    // Set VLC to render to this child window
 #ifdef Q_OS_WIN
-    WId handle = window->winId();
+    WId handle = m_vlcWindow->winId();
     if (handle) {
         libvlc_media_player_set_hwnd(m_mediaPlayer, (void*)handle);
     }
 #elif defined(Q_OS_LINUX)
-    libvlc_media_player_set_xwindow(m_mediaPlayer, window->winId());
+    libvlc_media_player_set_xwindow(m_mediaPlayer, m_vlcWindow->winId());
 #elif defined(Q_OS_MAC)
-    libvlc_media_player_set_nsobject(m_mediaPlayer, (void*)window->winId());
+    libvlc_media_player_set_nsobject(m_mediaPlayer, (void*)m_vlcWindow->winId());
 #endif
 
-    QRectF rect = videoOutput->mapRectToScene(videoOutput->boundingRect());
-    libvlc_video_set_scale(m_mediaPlayer, 0);
+    libvlc_video_set_scale(m_mediaPlayer, 0); // Disable scaling; let geometry control rendering
+
+    
+}
+
+bool VLCPlayerHandler::eventFilter(QObject* obj, QEvent* event) {
+    // Only proceed if we're in full-screen mode
+    if (fullScreen) {
+        // Handle key press events
+        if (event->type() == QEvent::KeyPress) {
+            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+            if (keyEvent->key() == Qt::Key_Escape) {
+                // Exit full-screen mode when the Escape key is pressed
+                setFullScreen(false);
+                return true; // Event is handled
+            }
+        }
+        
+    }
+
+    // Pass the event on if it's not handled here
+    return QObject::eventFilter(obj, event);
+}
+
+
+
+
+
+void VLCPlayerHandler::setFullScreen(bool setFullScreen) {
+    if (!m_vlcWindow)
+        return;
+    fullScreen = setFullScreen;
+    if (fullScreen) {
+        // Set the child window to full screen
+        QRect mainRect = mainWindow->geometry();
+        int adjustedHeight = mainRect.height();
+
+        m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
+    }
+    else {
+        // Set the child window back to original size
+        QRect mainRect = mainWindow->geometry();
+        int adjustedHeight = mainRect.height()-160;
+
+        m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
+    }
+
+    m_vlcWindow->show();
 }
 
 
@@ -304,6 +352,7 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
     if (!mediaMetadata.isEmpty()) {
         percentage_watched = mediaMetadata.value("percentage_watched").toFloat();
     }
+    fullScreen = false;
     
     m_currentMediaId = mediaId;
     m_subtitleTracks.clear();
@@ -356,7 +405,8 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
             });
 
         emit mediaLoaded();
-
+        libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
+        emit durationChanged(duration);
 
 
 

@@ -14,7 +14,7 @@ Window {
 
     // Properties to sync with main player
     property bool isPlaying: false
-    property int position: 0
+    property int position: 0 
     property int duration: 0
     property string title: ""
     property bool isDragging: false
@@ -90,6 +90,7 @@ Window {
                                 height: parent.height
                                 color: mouseArea.pressed ? "#1ED760" : "#1DB954"
                                 radius: 2
+                                
                             }
                         }
 
@@ -112,26 +113,30 @@ Window {
                             anchors.fill: parent
                             hoverEnabled: true
 
-                            onMouseXChanged: {
-                                if (pressed) {
-                                    console.log("Mouse dragged:", mouseX)
-                                    let newPosition = (mouseX / width) * duration
-                                    position = Math.max(0, Math.min(newPosition, duration))
-                                }
-                            }
-
                             onPressed: {
                                 console.log("Mouse pressed:", mouseX)
+                                isDragging = true
                                 let newPosition = (mouseX / width) * duration
                                 position = Math.max(0, Math.min(newPosition, duration))
                                 positionRequested(position)
                             }
 
+                            onMouseXChanged: {
+                                if (pressed) {
+                                    console.log("Mouse dragged:", mouseX)
+                                    let newPosition = (mouseX / width) * duration
+                                    position = Math.max(0, Math.min(newPosition, duration))
+                                    positionRequested(position)
+                                }
+                            }
+
                             onReleased: {
                                 console.log("Mouse released:", mouseX)
+                                isDragging = false
                                 positionRequested(position)
                             }
                         }
+
                     }
 
                     Text {
