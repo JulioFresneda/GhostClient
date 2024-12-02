@@ -40,6 +40,7 @@ signals:
     void positionChanged();
     void durationChanged();
     void closeRequested();
+    void mediaEnded();
 
 private:
     QString m_mediaId;

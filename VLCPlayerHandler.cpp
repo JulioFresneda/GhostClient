@@ -6,7 +6,9 @@
 #include <QUrlQuery>
 #include <QDebug>
 #include <QQuickWindow>
-
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QNetworkRequest>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
@@ -28,6 +30,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     QSettings settings("./conf.ini", QSettings::IniFormat);
     m_token = settings.value("authToken").toString();
     m_userId = settings.value("userID").toString();
+    m_profileId = settings.value("selectedProfileID").toString();
 
     const char* args[] = {
         //"--no-video-title-show",
@@ -59,7 +62,11 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
 
     m_positionTimer = new QTimer(this);
     connect(m_positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaInfo);
-    m_positionTimer->setInterval(10);
+    m_positionTimer->setInterval(100);
+
+    m_metadataTimer = new QTimer(this);
+    connect(m_positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaMetadataOnServer);
+    m_metadataTimer->setInterval(30000);
 
     libvlc_log_set(m_vlcInstance, vlcLogCallback, nullptr);
 }
@@ -144,6 +151,13 @@ void VLCPlayerHandler::stop() {
         libvlc_media_player_stop(m_mediaPlayer);
         m_isPlaying = false;
         m_positionTimer->stop(); // Stop the timer when stopped
+
+        if (m_vlcWindow) {
+            m_vlcWindow->close(); // Close the window and remove it from the screen
+            delete m_vlcWindow;   // Free the memory used by the window
+            m_vlcWindow = nullptr; // Prevent dangling pointers
+        }
+
         emit playingStateChanged(false);
 
         // Reset position to 0
@@ -166,9 +180,51 @@ void VLCPlayerHandler::updateMediaInfo() {
 
         if (currentTime >= 0 && duration > 0) {
             emit positionChanged(currentTime);
+
+            
             
         }
     }
+    else if (state == libvlc_Ended) {
+        emit mediaEnded();
+    }
+}
+
+void VLCPlayerHandler::updateMediaMetadataOnServer() {
+    if (!m_mediaPlayer) return;
+
+    QUrl url("http://localhost:18080/update_media_metadata");
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    // Create the JSON payload
+    QJsonObject jsonPayload;
+
+    jsonPayload["userID"] = m_userId;
+    jsonPayload["token"] = m_token;
+    jsonPayload["profileID"] = m_profileId;
+    jsonPayload["mediaID"] = m_currentMediaId;
+    float position = libvlc_media_player_get_position(m_mediaPlayer);
+    jsonPayload["percentageWatched"] = QString::number(position, 'f', 3);
+    jsonPayload["languageChosen"] = "en";  // Default language
+    jsonPayload["subtitlesChosen"] = m_currentSubtitlesCode;  // Default subtitles
+
+    QJsonDocument doc(jsonPayload);
+    QByteArray jsonData = doc.toJson();
+
+    // Send the POST request
+    QNetworkReply* reply = m_networkManager.post(request, jsonData);
+
+    // Handle the response
+    connect(reply, &QNetworkReply::finished, this, [reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            qDebug() << "Successfully updated media metadata";
+        }
+        else {
+            qDebug() << "Error updating media metadata:" << reply->errorString();
+        }
+        reply->deleteLater();
+        });
 }
 
 void VLCPlayerHandler::cleanupVLC() {
@@ -555,27 +611,30 @@ void VLCPlayerHandler::setSubtitleTrack(int trackId) {
         return;
     }
 
-    for (int i = 0; i < 2; i++) {
-        libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
 
-        if (!tracks) {
-            qDebug() << "ERROR: No subtitle tracks available!";
-        }
-        else {
-            qDebug() << "Available subtitle tracks:";
+    libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
 
-            // Iterate over the linked list of track descriptions
-            libvlc_track_description_t* currentDesc = tracks;
-            while (currentDesc) {
-                qDebug() << "Track ID:" << currentDesc->i_id << "Name:" << currentDesc->psz_name;
-                currentDesc = currentDesc->p_next;
-            }
-
-            // Release the memory used by the track descriptions
-            libvlc_track_description_list_release(tracks);
-        }
-
+    if (!tracks) {
+        qDebug() << "ERROR: No subtitle tracks available!";
     }
+    else {
+        qDebug() << "Available subtitle tracks:";
+
+        // Iterate over the linked list of track descriptions
+        libvlc_track_description_t* currentDesc = tracks;
+        while (currentDesc) {
+            qDebug() << "Track ID:" << currentDesc->i_id << "Name:" << currentDesc->psz_name;
+            currentDesc = currentDesc->p_next;
+            if (currentDesc->i_id == trackId) {
+                m_currentSubtitlesCode = currentDesc->psz_name;
+            }
+        }
+
+        // Release the memory used by the track descriptions
+        libvlc_track_description_list_release(tracks);
+    }
+
+    
 
     int currentTrack = libvlc_video_get_spu(m_mediaPlayer);
     qDebug() << "Current subtitle track after setting:" << currentTrack;

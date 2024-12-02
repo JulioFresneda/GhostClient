@@ -13,6 +13,7 @@ Rectangle {
     required property var mediaMetadata
 
     signal closeRequested
+    signal mediaEnded
 
     // Create a basic column layout
     ColumnLayout {
@@ -42,6 +43,14 @@ Rectangle {
                         } else {
                             loadMedia(root.mediaId, {})
                         }
+                    }
+                }
+                onMediaEnded: {
+                    root.mediaEnded()
+                    if (root.mediaMetadata !== undefined) {
+                        loadMedia(root.mediaId, root.mediaMetadata)
+                    } else {
+                        loadMedia(root.mediaId, {})
                     }
                 }
             }

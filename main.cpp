@@ -10,10 +10,13 @@
 
 
 // TODO
+// Features
 // - Multiple audios, subtitles - OK
-// - Controls design
+// - Controls design - OK
+// - Autoplay next episode
+// 
+// Visuals
 // - Load image
-// - Metadata
 // - Categories
 
 

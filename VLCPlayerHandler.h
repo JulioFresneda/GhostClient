@@ -59,13 +59,17 @@ signals:
     void playingStateChanged(bool isPlaying);
     void errorOccurred(const QString& error);
     void mediaLoaded();
+    void mediaEnded();
     void videoSinkChanged();
     void subtitleTracksChanged();
     void audioTracksChanged();
 
+    void progressUpdated(float percentage);
+
 private:
     void cleanupVLC();
     void updateMediaInfo();
+    void updateMediaMetadataOnServer();
     bool verifyVLCSetup();
     bool tryLoadSubtitle(const QString& mediaId, const QString& language);
     void updateSubtitleTracks();
@@ -77,11 +81,15 @@ private:
     libvlc_media_player_t* m_mediaPlayer;
     libvlc_media_t* m_media;
     QString m_currentMediaId;
+    QString m_currentSubtitlesCode;
+
     bool m_isPlaying;
     QString m_token;
     QString m_userId;
+    QString m_profileId;
     QVideoSink* m_videoSink;
     QTimer* m_positionTimer;
+    QTimer* m_metadataTimer;
     QVariantList m_subtitleTracks;
     QVariantList m_audioTracks;
     QNetworkAccessManager m_networkManager;

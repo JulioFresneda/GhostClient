@@ -23,6 +23,8 @@ Item {
     property bool isPlayerVisible: false
     property string currentMediaId: ""
 
+    
+
     // Color scheme
     QtObject {
         id: colors
@@ -310,6 +312,18 @@ Item {
                     onCloseRequested: {
                         isPlayerVisible = false
                         currentMediaId = ""
+                    }
+                    onMediaEnded: {
+                        if (selectedCollectionId) {
+                            // Find current media in filtered data
+                            let currentIndex = filteredData.findIndex(media => media.ID === currentMediaId)
+                            if (currentIndex >= 0 && currentIndex < filteredData.length - 1) {
+                                // Play next episode
+                                currentMediaId = filteredData[currentIndex + 1].ID
+                                mediaId = currentMediaId
+                                mediaMetadata = root.mediaMetadata[currentMediaId]
+                            }
+                        }
                     }
                     
                 }
