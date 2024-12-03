@@ -84,5 +84,8 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="StartAnimation.qml">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

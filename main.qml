@@ -13,6 +13,31 @@ ApplicationWindow {
     Login {
         id: loginManager
     }
+    Loader {
+        id: startAnimation
+        anchors.fill: parent
+        source: "qrc:/qt/qml/ghostclient/StartAnimation.qml"
+        active: true
+        z: 100
+
+        onLoaded: {
+            item.animationFinished.connect(function() {
+                splashFadeOut.start()
+            })
+        }
+    }
+    NumberAnimation {
+        id: splashFadeOut
+        target: startAnimation
+        property: "opacity"
+        from: 1
+        to: 0
+        duration: 500
+        onFinished: {
+            startAnimation.active = false
+            profileView.opacity = 1
+        }
+    }
 
     Loader {
         id: appLoader
@@ -35,33 +60,12 @@ ApplicationWindow {
 
         // Logo section
         Image {
-            id: logo
-            source: "qrc:/media/logo.png"
-            width: 200
-            height: 100
-            anchors {
-                top: parent.top
-                topMargin: 40
-                horizontalCenter: parent.horizontalCenter
-            }
-            fillMode: Image.PreserveAspectFit
+            id: wallpaper
+            source: "qrc:/media/wallpaper_login_1.png"
+            anchors.fill: parent
         }
 
-        // Welcome text
-        Text {
-            id: welcomeText
-            text: "Who's watching?"
-            color: "#FFFFFF"
-            font {
-                pointSize: 32
-                weight: Font.Light
-            }
-            anchors {
-                top: logo.bottom
-                topMargin: 60
-                horizontalCenter: parent.horizontalCenter
-            }
-        }
+        
 
         // Profile grid container
         Item {
@@ -72,7 +76,7 @@ ApplicationWindow {
                 left: parent.left
                 right: parent.right
             }
-            height: 250 // Adjust based on your needs
+            height: parent.height*1.61
 
             Row {
                 id: profileRow
@@ -83,34 +87,41 @@ ApplicationWindow {
                 Repeater {
                     model: profileModel
                     delegate: Item {
-                        width: 200
-                        height: 200
+                        width: 150
+                        height: 150
 
                         Rectangle {
                             id: profileRect
                             width: 150
                             height: 150
-                            radius: 12
-                            color: "#2A2A2A"
+                            //radius: 12
+                            color: "#290D3D"
                             anchors.horizontalCenter: parent.horizontalCenter
                             scale: 1.0
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: parent.radius
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "#419A38" }
+                                    GradientStop { position: 0.5; color: "#163513" }
+                                    GradientStop { position: 1.0; color: "#163513" }
+                                }
+                                visible: profileMouseArea.containsMouse
+                            }
 
                             Image {
                                 id: profileImage
                                 source: "qrc:/media/ghosts/" + model.pictureID
                                 anchors {
                                     fill: parent
-                                    margins: 20
+                                    margins: 2
                                 }
                                 fillMode: Image.PreserveAspectFit
                             }
 
                             // Hover effect
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: parent.radius
-                                color: profileMouseArea.containsMouse ? "#FFFFFF33" : "transparent"
-                            }
+                            
 
                             MouseArea {
                                 id: profileMouseArea
@@ -129,19 +140,30 @@ ApplicationWindow {
                             }
                         }
 
-                        Text {
-                            text: model.profileID
-                            color: "#FFFFFF"
-                            font {
-                                pointSize: 16
-                                weight: Font.Light
-                            }
+                        Rectangle {
                             anchors {
                                 top: profileRect.bottom
                                 topMargin: 15
                                 horizontalCenter: profileRect.horizontalCenter
                             }
-                            horizontalAlignment: Text.AlignHCenter
+                            width: 150 // Add padding
+                            height: contentText.height + 10 // Add padding
+                            color: "#050505"  // Dark background color
+                            radius: 0  // Slightly rounded corners
+                            border.width: 2  // Border width
+                            border.color: "#290D3D"
+
+                            Text {
+                                id: contentText
+                                text: model.profileID
+                                color: "#FFFFFF"
+                                font {
+                                    pointSize: 16
+                                    weight: Font.Light
+                                }
+                                anchors.centerIn: parent
+                                horizontalAlignment: Text.AlignHCenter
+                            }
                         }
                     }
                 }

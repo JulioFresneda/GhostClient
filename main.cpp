@@ -13,11 +13,14 @@
 // Features
 // - Multiple audios, subtitles - OK
 // - Controls design - OK
-// - Autoplay next episode
+// - Autoplay next episode - OK
 // 
 // Visuals
-// - Load image
+// - Loading
 // - Categories
+// - 
+// - Make it prettier
+
 
 
 

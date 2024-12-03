@@ -11,8 +11,7 @@ MediaPlayer::MediaPlayer(QObject* parent)
         this, &MediaPlayer::positionChanged);
     connect(m_vlcPlayer, &VLCPlayerHandler::durationChanged,
         this, &MediaPlayer::durationChanged);
-    connect(m_vlcPlayer, &VLCPlayerHandler::mediaEnded,
-        this, &MediaPlayer::mediaEnded);
+
 }
 
 void MediaPlayer::setMediaId(const QString& mediaId) {
