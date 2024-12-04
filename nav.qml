@@ -16,14 +16,18 @@ Item {
     property var mediaData: []
     property var mediaMetadata: []
     property var filteredData: []
-    property string currentCategory: "series"
+    property string currentCategory: "continueWatching"
     property bool isGridView: true
     property string selectedCollectionId: ""
     property string selectedCollectionTitle: ""
     property bool isPlayerVisible: false
     property string currentMediaId: ""
 
-    
+    property var categories: {
+        "continueWatching": "Continuar viendo",
+        "series" : "Series",
+        "movies" : "Pelis"
+    }
 
     // Color scheme
     QtObject {
@@ -71,27 +75,27 @@ Item {
 
                 // Categories
                 Repeater {
-                    model: ["Series", "Movies"]
+                    model: Object.keys(categories)
                     delegate: ItemDelegate {
                         Layout.fillWidth: true
                         height: 48
 
                         background: Rectangle {
-                            color: currentCategory === modelData.toLowerCase() ? 
+                            color: currentCategory === modelData ? 
                                   colors.primary : colors.background
                             radius: 8
                         }
 
                         contentItem: Text {
-                            text: modelData
-                            color: currentCategory === modelData.toLowerCase() ? 
+                            text: categories[modelData]
+                            color: currentCategory === modelData ? 
                                   colors.textPrimary : colors.textSecondary
                             font.pointSize: 14
                             verticalAlignment: Text.AlignVCenter
                         }
 
                         onClicked: {
-                            currentCategory = modelData.toLowerCase()
+                            currentCategory = modelData
                             filterContent()
                         }
                     }
