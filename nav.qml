@@ -37,6 +37,9 @@ Item {
         property string primary: "#FCF7F8"
         property string textPrimary: "#050505"
         property string textSecondary: "#FCF7F8"
+        property string strongViolet: "#290D3D"
+        property string strongWhite: "#e2e2e2"
+        property string green: "#419A38"
     }
 
     // Background
@@ -142,6 +145,8 @@ Item {
             Layout.fillHeight: true
             Layout.margins: 24
             spacing: 24
+
+            
 
             // Search and View Toggle Bar
             Rectangle {
@@ -342,81 +347,105 @@ Item {
         property string title: ""
         property string mediaId: ""
         signal clicked
+        color: "white"
+        border.width: 5
+        bottomLeftRadius: 50
+        bottomRightRadius: 50
+        border.color: cardMouseArea.containsMouse ? colors.green : colors.strongWhite
 
-        color: colors.surface
-        radius: 8
-
-        Rectangle {
-            id: imageContainer
-            anchors {
-                top: parent.top
-                left: parent.left
-                right: parent.right
-            }
-            height: parent.height - titleText.height - 16
-            color: colors.background
-            radius: 8
-            clip: true
-
-            CoverImage {
-                anchors.fill: parent
-                mediaId: card.mediaId
-            }
+        gradient: Gradient {
+            //GradientStop { position: 0.0; color: colors.strongWhite }
+            GradientStop { position: 0.84; color: colors.strongWhite }
+            GradientStop { position: 0.88; color: "white" }
         }
 
-        Text {
-            id: titleText
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: parent.bottom
-                margins: 8
-            }
-            text: title
-            color: colors.textPrimary
-            font.pointSize: 12
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-        }
-
-        // Progress bar
+        // Main content container with border
         Rectangle {
-            id: progressBar
+            id: contentContainer
             anchors {
-                left: parent.left
-                right: parent.right
-                bottom: parent.bottom
-                margins: 8
+                fill: parent
+                margins: 5  // Add some margin to ensure border is visible
             }
-            height: 4
-            radius: 2
-            color: "#333333"  // Dark background for progress bar
-
+            color: "transparent"
+        
+            // Cover image container
             Rectangle {
-                id: progressFill
+                id: imageContainer
                 anchors {
-                    left: parent.left
-                    top: parent.top
-                    bottom: parent.bottom
+                    top: contentContainer.top
+                    left: contentContainer.left
+                    right: contentContainer.right
                 }
-                width: parent.width * getMediaProgress(card.mediaId)
-                color: colors.primary
-                radius: 2
+                height: parent.height - titleContainer.height
 
-                // Smooth animation for width changes
-                Behavior on width {
-                    NumberAnimation {
-                        duration: 300
-                        easing.type: Easing.OutQuad
+                color: colors.background
+                clip: true  // Ensure image stays within bounds
+
+                CoverImage {
+                    anchors.fill: parent
+                    mediaId: card.mediaId
+                }
+            }
+
+            // Title container with white background
+            Rectangle {
+                id: titleContainer
+                anchors {
+                    left: contentContainer.left
+                    right: contentContainer.right
+                    bottom: contentContainer.bottom
+                }
+                height: titleText.height + 16
+                color: "transparent"
+                clip: true
+                Rectangle {
+                    id: progressBar
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        bottom: parent.top
+                    }
+                    height: 4
+                    color: "#333333"
+                    visible: getMediaProgress(card.mediaId) > 0
+    
+                    Rectangle {
+                        id: progressFill
+                        anchors {
+                            left: parent.left
+                            top: parent.top
+                            bottom: parent.bottom
+                        }
+                        width: parent.width * getMediaProgress(card.mediaId)
+                        color: "#1DB954"
                     }
                 }
-            }
 
-            // Only show if there's progress
-            visible: getMediaProgress(card.mediaId) > 0
+                Text {
+                    id: titleText
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        verticalCenter: parent.verticalCenter
+                        margins: 6
+                    }
+                    text: title
+                    color: "black"
+                    font.pointSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+
+                    wrapMode: Text.WordWrap
+                    
+                }
+
+                
+                
+            }
         }
 
         MouseArea {
+            id: cardMouseArea
             anchors.fill: parent
             hoverEnabled: true
             onClicked: {
@@ -434,24 +463,6 @@ Item {
                     currentMediaId = modelData.ID
                     isPlayerVisible = true
                 }
-            }
-            onEntered: card.state = "hover"
-            onExited: card.state = ""
-        }
-
-        states: State {
-            name: "hover"
-            PropertyChanges {
-                target: card
-                scale: 1.05
-            }
-        }
-
-        transitions: Transition {
-            NumberAnimation {
-                properties: "scale"
-                duration: 200
-                easing.type: Easing.OutQuad
             }
         }
     }
@@ -572,8 +583,27 @@ Item {
             currentCategory: currentCategory,
             groupMovies: groupMoviesCheck.checked
         })
-
-        if (currentCategory === "series") {
+        if (currentCategory === "continueWatching") {
+            // Filter media items that are in progress
+            filteredData = mediaData.filter(media => {
+                let matchesSearch = (media.title || "").toLowerCase().includes(searchText);
+                let progress = getMediaProgress(media.ID);
+        
+                // Show items with progress between 0% and 99%
+                return matchesSearch && progress > 0 && progress < 0.99;
+            });
+    
+            // Sort by progress (most recently watched first)
+            filteredData.sort((a, b) => {
+                // Get progress for both items
+                let progressA = getMediaProgress(a.ID);
+                let progressB = getMediaProgress(b.ID);
+        
+                // Sort in descending order (higher progress first)
+                return progressB - progressA;
+            });
+        }
+        else if (currentCategory === "series") {
             filteredData = collectionsData.filter(collection => {
                 let matchesSearch = collection.collection_title.toLowerCase().includes(searchText)
                 let isSeries = collection.collection_type === "serie"
@@ -631,6 +661,8 @@ Item {
         
             root.mediaMetadata = metadataMap;
             console.log("Loaded media metadata:", Object.keys(root.mediaMetadata).length);
+            // Initial filtering
+            filterContent()
         }
 
         function onMediaDataFetched(fetchedData) {
@@ -646,8 +678,7 @@ Item {
                 console.log("Total media items loaded:", root.mediaData.length)
             }
 
-            // Initial filtering
-            filterContent()
+            
 
             loginManager.fetchMediaMetadata()
 
