@@ -6,6 +6,7 @@
 #include "Login.h"
 #include "VLCPlayerHandler.h"  
 #include "MediaPlayer.h"
+#include <MediaFilterHandler.h>
 
 
 
@@ -40,6 +41,7 @@ int main(int argc, char* argv[])
     qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");
     qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
     qmlRegisterType<MediaPlayer>("com.ghoststream", 1, 0, "MediaPlayer");
+    qmlRegisterType<MediaFilterHandler>("com.ghoststream", 1, 0, "MediaFilterHandler");
 
     QQmlApplicationEngine engine;
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ghostclient/main.qml")));

@@ -22,6 +22,10 @@ Item {
     property bool isPlayerVisible: false
     property string currentMediaId: ""
 
+    MediaFilterHandler {
+        id: filterHandler
+    }
+
     property var categories: {
         "continueWatching": "Continuar viendo",
         "series" : "Series",
@@ -246,6 +250,7 @@ Item {
                 Layout.preferredHeight: filterBarRowLayout.implicitHeight + (2 * padding)
                 color: colors.surface
                 radius: 8
+                
                 z: 2
                 property int padding: 8
                 // Properties to store selected filters
@@ -261,37 +266,78 @@ Item {
                 RowLayout {
                     id: filterBarRowLayout
                     Layout.fillWidth: true
-                    Layout.margins: padding
-                    spacing: 16
-
+                    Layout.alignment: Qt.AlignVCenter
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        verticalCenter: parent.verticalCenter
+                        leftMargin: filterBar.padding
+                        rightMargin: filterBar.padding
+                    }
+                    
+                    Item {
+                        width: 4 // Space to the left of the ComboBox
+                    }
                     // Genres ComboBox
                     ComboBox {
                         id: genreFilter
                         Layout.preferredWidth: 150
-                        model: getUniqueGenres()
+                        model: filterHandler.getUniqueGenres(collectionsData, mediaData)
                         textRole: "text"
-                        displayText: selectedGenres.length > 0 ? 
-                                    selectedGenres.join(", ") : "Genre"
+                        displayText: filterBar.selectedGenres.length > 0 ?
+                                     filterBar.selectedGenres.join(", ") : "Genre"
+
+                        background: Rectangle {
+                            color: colors.background
+                            radius: 4
+                        }
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitHeight: 40
+                        Item {
+                        width: 4 // Space to the left of the ComboBox
+                    }
+                        contentItem: Item {
+                            implicitWidth: genreText.implicitWidth
+                            implicitHeight: genreText.implicitHeight
+
+                            Text {
+                                id: genreText
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    leftMargin: 12  // Increased left padding
+                                    rightMargin: 8  // Added right padding
+                                }
+                                text: genreFilter.displayText
+                                color: "white"
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                font.pointSize: 12
+                            }
+                        }
 
                         delegate: CheckDelegate {
                             width: parent.width
                             text: modelData.text
-                            checked: selectedGenres.includes(modelData.text)
+                            checked: filterBar.selectedGenres.includes(modelData.text)
                             onCheckedChanged: {
                                 if (checked) {
-                                    if (!selectedGenres.includes(modelData.text)) {
-                                        selectedGenres.push(modelData.text)
+                                    if (!filterBar.selectedGenres.includes(modelData.text)) {
+                                        filterBar.selectedGenres.push(modelData.text)
                                     }
                                 } else {
-                                    const index = selectedGenres.indexOf(modelData.text)
+                                    const index = filterBar.selectedGenres.indexOf(modelData.text)
                                     if (index > -1) {
-                                        selectedGenres.splice(index, 1)
+                                        filterBar.selectedGenres.splice(index, 1)
                                     }
                                 }
+                                console.log(filterBar.selectedGenres)
                                 filterBar.filtersChanged()
                             }
                         }
                     }
+
 
                     // Era ComboBox
                     ComboBox {
@@ -320,7 +366,7 @@ Item {
                     ComboBox {
                         id: producerFilter
                         Layout.preferredWidth: 150
-                        model: getUniqueProducers()
+                        model: filterHandler.getUniqueProducers(collectionsData, mediaData)
                         displayText: currentText || "Producer"
                         onActivated: {
                             selectedProducer = currentText === "All" ? "" : currentText
@@ -350,63 +396,15 @@ Item {
                     Item { Layout.fillWidth: true } // Spacer
                 }
 
-                // Helper function to get unique genres from collections and media
-                function getUniqueGenres() {
-                    const genres = new Set()
-                    collectionsData.forEach(collection => {
-                        try {
-                            const genreList = JSON.parse(collection.genres || "[]")
-                            genreList.forEach(genre => genres.add(genre))
-                        } catch (e) {
-                            console.error("Error parsing genres:", e)
-                        }
-                    })
-                    return Array.from(genres).map(genre => ({ text: genre }))
-                }
+                
 
-                // Helper function to get unique producers
-                function getUniqueProducers() {
-                    const producers = new Set(["All"])
-                    collectionsData.forEach(collection => {
-                        if (collection.producer) {
-                            producers.add(collection.producer)
-                        }
-                    })
-                    mediaData.forEach(media => {
-                        if (media.producer) {
-                            producers.add(media.producer)
-                        }
-                    })
-                    return Array.from(producers)
-                }
+                
 
-                // Helper function to check if any filters are active
-                function hasActiveFilters() {
-                    return selectedGenres.length > 0 || 
-                           selectedEra !== "" || 
-                           showTopRated || 
-                           selectedProducer !== ""
-                }
+                
 
-                // Helper function to clear all filters
-                function clearFilters() {
-                    selectedGenres = []
-                    selectedEra = ""
-                    showTopRated = false
-                    selectedProducer = ""
-                    genreFilter.currentIndex = -1
-                    eraFilter.currentIndex = 0
-                    topRatedSwitch.checked = false
-                    producerFilter.currentIndex = 0
-                    filterBar.filtersChanged()
-                }
+                
 
-                // Helper function to get era from year
-                function getEraFromYear(year) {
-                    if (!year) return ""
-                    const decade = Math.floor(year / 10) * 10
-                    return decade + "'s"
-                }
+                
             }
 
             // Content Grid/List View
@@ -704,7 +702,7 @@ Item {
 
     function filterContent() {
         let searchText = searchField.text.toLowerCase()
-
+        let filteredResults = []
         if (selectedCollectionId !== "") {
             let selectedCollection = collectionsData.find(c => c.ID === selectedCollectionId)
             if (selectedCollection) {
@@ -786,6 +784,25 @@ Item {
             })
         }
 
+        filteredResults = filteredData
+        if (filterBar.selectedGenres.length > 0) {
+            console.log(filterBar.selectedGenres)
+            filteredResults = filterHandler.filterByGenre(filteredResults, filterBar.selectedGenres)
+        }
+
+        if (filterBar.showTopRated) {
+            filteredResults = filterHandler.filterByRating(filteredResults, 8.0)
+        }
+
+        if (filterBar.selectedEra) {
+            filteredResults = filterHandler.filterByEra(filteredResults, filterBar.selectedEra)
+        }
+
+        if (filterBar.selectedProducer && filterBar.selectedProducer !== "All") {
+            filteredResults = filterHandler.filterByProducer(filteredResults, filterBar.selectedProducer)
+        }
+        filteredData = filteredResults
+
         console.log("Filtered results:", filteredData.length, "items")
     }
 
@@ -794,7 +811,12 @@ Item {
         currentMediaId = mediaItem.ID
         isPlayerVisible = true
     }
-
+    Connections {
+        target: filterBar
+        function onFiltersChanged() {
+            filterContent()
+        }
+    }
     Connections {
         target: loginManager
 
