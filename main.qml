@@ -17,7 +17,7 @@ ApplicationWindow {
         id: startAnimation
         anchors.fill: parent
         source: "qrc:/qt/qml/ghostclient/StartAnimation.qml"
-        active: true
+        active: false
         z: 100
 
         onLoaded: {

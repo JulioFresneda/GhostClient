@@ -28,11 +28,11 @@ Item {
     // Color scheme
     QtObject {
         id: colors
-        property string background: "#121212"
+        property string background: "#050505"
         property string surface: "#1E1E1E"
-        property string primary: "#1DB954"
-        property string textPrimary: "#FFFFFF"
-        property string textSecondary: "#B3B3B3"
+        property string primary: "#FCF7F8"
+        property string textPrimary: "#050505"
+        property string textSecondary: "#FCF7F8"
     }
 
     // Background
@@ -54,20 +54,19 @@ Item {
             Layout.fillHeight: true
             color: colors.surface
 
+            Image {
+                anchors.fill: parent
+                id: sidebar
+                source: "qrc:/media/sidebar.png"
+            }
+
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 24
 
-                // Logo or Title
-                Text {
-                    Layout.fillWidth: true
-                    text: "Ghost Stream"
-                    color: colors.textPrimary
-                    font {
-                        pointSize: 24
-                        bold: true
-                    }
+                Item {
+                    Layout.preferredHeight: parent.height * 0.2 // Takes 3/4 of the height
                 }
 
                 // Categories
@@ -79,7 +78,7 @@ Item {
 
                         background: Rectangle {
                             color: currentCategory === modelData.toLowerCase() ? 
-                                  colors.primary : "transparent"
+                                  colors.primary : colors.background
                             radius: 8
                         }
 

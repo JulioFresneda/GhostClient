@@ -6,5 +6,6 @@
         <file>media/ghosts/4.png</file>
         <file>media/logo.png</file>
         <file>media/wallpaper_login_1.png</file>
+        <file>media/sidebar.png</file>
     </qresource>
 </RCC>
