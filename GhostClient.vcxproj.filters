@@ -87,5 +87,8 @@
     <None Include="StartAnimation.qml">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="FilterBar.qml">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

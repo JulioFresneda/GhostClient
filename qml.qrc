@@ -6,5 +6,6 @@
         <file>MediaPlayer.qml</file>
         <file>PlayerControls.qml</file>
         <file>StartAnimation.qml</file>
+        <file>FilterBar.qml</file>
     </qresource>
 </RCC>

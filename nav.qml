@@ -17,7 +17,6 @@ Item {
     property var mediaMetadata: []
     property var filteredData: []
     property string currentCategory: "continueWatching"
-    property bool isGridView: true
     property string selectedCollectionId: ""
     property string selectedCollectionTitle: ""
     property bool isPlayerVisible: false
@@ -40,6 +39,7 @@ Item {
         property string strongViolet: "#290D3D"
         property string strongWhite: "#e2e2e2"
         property string green: "#419A38"
+        property string superGreen: "#66f557"
     }
 
     // Background
@@ -57,15 +57,18 @@ Item {
 
         // Sidebar
         Rectangle {
-            Layout.preferredWidth: 240
+            Layout.preferredWidth: parent.width * 0.1275
             Layout.fillHeight: true
             color: colors.surface
 
             Image {
+                z: 0
                 anchors.fill: parent
                 id: sidebar
                 source: "qrc:/media/sidebar.png"
             }
+
+            
 
             ColumnLayout {
                 anchors.fill: parent
@@ -85,7 +88,7 @@ Item {
 
                         background: Rectangle {
                             color: currentCategory === modelData ? 
-                                  colors.primary : colors.background
+                                  colors.primary : "black"
                             radius: 8
                         }
 
@@ -104,28 +107,31 @@ Item {
                     }
                 }
 
-                Item { Layout.fillHeight: true } // Spacer
+                
 
                 ItemDelegate {
                     Layout.fillWidth: true
-                    height: 48
+                    height: 0
                     visible: selectedCollectionId !== ""
 
                     background: Rectangle {
-                        color: "transparent"
+                        //
+                        color: "black"
                         radius: 8
+                        border.width: 4
+                        border.color: colors.strongWhite
                     }
 
                     contentItem: RowLayout {
-                        spacing: 8
+                        spacing: 0
                         Text {
-                            text: "←"
-                            color: colors.textPrimary
+                            text: " ←"
+                            color: colors.textSecondary
                             font.pointSize: 16
                         }
                         Text {
                             text: "Back"
-                            color: colors.textPrimary
+                            color: colors.textSecondary
                             font.pointSize: 14
                         }
                     }
@@ -136,8 +142,11 @@ Item {
                         filterContent()
                     }
                 }
+                Item { Layout.fillHeight: true } // Spacer
             }
         }
+
+        
 
         // Main Content
         ColumnLayout {
@@ -154,29 +163,24 @@ Item {
                 height: 56
                 color: colors.surface
                 radius: 8
+                z: 2
 
                 RowLayout {
+                    Layout.fillWidth: true
                     anchors.fill: parent
                     anchors.margins: 8
                     spacing: 16
 
-                    Text {
-                        Layout.fillWidth: true
-                        text: selectedCollectionTitle
-                        color: colors.textPrimary
-                        font {
-                            pointSize: 24
-                            bold: true
-                        }
-                        visible: selectedCollectionId !== ""
-                    }
+                    //Item { Layout.fillWidth: true }
 
                     TextField {
                         id: searchField
-                        Layout.fillWidth: true
-                        placeholderText: "Search content..."
-                        placeholderTextColor: colors.textSecondary
-                        color: colors.textPrimary
+                        Layout.preferredWidth: 300  // Set a width if you need to control the width explicitly
+                        //height: 40  // Height should be less than container height to allow centering
+                        anchors.verticalCenter: parent.verticalCenter  // Vertically center the TextField
+                        placeholderText: "Search your ghost..."
+                        placeholderTextColor: colors.strongWhite
+                        color: colors.strongWhite
                         font.pointSize: 12
 
                         background: Rectangle {
@@ -187,12 +191,22 @@ Item {
                         onTextChanged: filterContent()
                     }
 
+                    Item { Layout.fillWidth: true }
+
+                    Text {
+                        text: "Agrupar"
+                        color: "white"  // White text color
+                        anchors.verticalCenter: parent.verticalCenter 
+                        font.pointSize: 14
+                        visible: currentCategory === "movies"
+                    }
                     CheckBox {
                         id: groupMoviesCheck
-                        text: "Group by Collection"
+                        text: ""
+                        
                         visible: currentCategory === "movies"
                         checked: true
-
+                        
                         contentItem: Text {
                             text: groupMoviesCheck.text
                             color: colors.textPrimary
@@ -201,15 +215,15 @@ Item {
                         }
 
                         indicator: Rectangle {
-                            implicitWidth: 20
-                            implicitHeight: 20
+                            implicitWidth: 40
+                            implicitHeight: 40
                             radius: 3
                             border.color: colors.primary
                             color: "transparent"
 
                             Rectangle {
-                                width: 12
-                                height: 12
+                                width: 20
+                                height: 20
                                 anchors.centerIn: parent
                                 radius: 2
                                 color: colors.primary
@@ -220,36 +234,190 @@ Item {
                         onCheckedChanged: filterContent()
                     }
 
-                    Row {
-                        spacing: 8
-
-                        Button {
-                            width: 40
-                            height: 40
-                            text: "⊞"
-                            flat: true
-                            checked: isGridView
-                            onClicked: isGridView = true
-                        }
-
-                        Button {
-                            width: 40
-                            height: 40
-                            text: "≣"
-                            flat: true
-                            checked: !isGridView
-                            onClicked: isGridView = false
-                        }
-                    }
+                    
                 }
             }
-// Content Grid/List View
+
+            // After the search bar and before the content grid
+            // FilterBar.qml
+            Rectangle {
+                id: filterBar
+                Layout.fillWidth: true
+                Layout.preferredHeight: filterBarRowLayout.implicitHeight + (2 * padding)
+                color: colors.surface
+                radius: 8
+                z: 2
+                property int padding: 8
+                // Properties to store selected filters
+                property var selectedGenres: []
+                property string selectedEra: ""
+                property bool showTopRated: false
+                property string selectedDirector: ""
+                property string selectedProducer: ""
+
+                // Signals for filter changes
+                signal filtersChanged()
+
+                RowLayout {
+                    id: filterBarRowLayout
+                    Layout.fillWidth: true
+                    Layout.margins: padding
+                    spacing: 16
+
+                    // Genres ComboBox
+                    ComboBox {
+                        id: genreFilter
+                        Layout.preferredWidth: 150
+                        model: getUniqueGenres()
+                        textRole: "text"
+                        displayText: selectedGenres.length > 0 ? 
+                                    selectedGenres.join(", ") : "Genre"
+
+                        delegate: CheckDelegate {
+                            width: parent.width
+                            text: modelData.text
+                            checked: selectedGenres.includes(modelData.text)
+                            onCheckedChanged: {
+                                if (checked) {
+                                    if (!selectedGenres.includes(modelData.text)) {
+                                        selectedGenres.push(modelData.text)
+                                    }
+                                } else {
+                                    const index = selectedGenres.indexOf(modelData.text)
+                                    if (index > -1) {
+                                        selectedGenres.splice(index, 1)
+                                    }
+                                }
+                                filterBar.filtersChanged()
+                            }
+                        }
+                    }
+
+                    // Era ComboBox
+                    ComboBox {
+                        id: eraFilter
+                        Layout.preferredWidth: 120
+                        model: ["All", "60's", "70's", "80's", "90's", "2000's", "2010's", "2020's"]
+                        displayText: currentText === "All" ? "Era" : currentText
+                        onActivated: {
+                            selectedEra = currentText === "All" ? "" : currentText
+                            filterBar.filtersChanged()
+                        }
+                    }
+
+                    // Top Rated Switch
+                    Switch {
+                        id: topRatedSwitch
+                        text: "Top Rated (8+)"
+                        checked: showTopRated
+                        onCheckedChanged: {
+                            showTopRated = checked
+                            filterBar.filtersChanged()
+                        }
+                    }
+
+                    // Producer ComboBox
+                    ComboBox {
+                        id: producerFilter
+                        Layout.preferredWidth: 150
+                        model: getUniqueProducers()
+                        displayText: currentText || "Producer"
+                        onActivated: {
+                            selectedProducer = currentText === "All" ? "" : currentText
+                            filterBar.filtersChanged()
+                        }
+                    }
+
+                    // Clear Filters Button
+                    Button {
+                        text: "Clear Filters"
+                        flat: true
+                        visible: hasActiveFilters()
+                        onClicked: clearFilters()
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: colors.textSecondary
+                            font.pointSize: 12
+                        }
+
+                        background: Rectangle {
+                            color: parent.hovered ? Qt.darker(colors.surface, 1.2) : "transparent"
+                            radius: 4
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true } // Spacer
+                }
+
+                // Helper function to get unique genres from collections and media
+                function getUniqueGenres() {
+                    const genres = new Set()
+                    collectionsData.forEach(collection => {
+                        try {
+                            const genreList = JSON.parse(collection.genres || "[]")
+                            genreList.forEach(genre => genres.add(genre))
+                        } catch (e) {
+                            console.error("Error parsing genres:", e)
+                        }
+                    })
+                    return Array.from(genres).map(genre => ({ text: genre }))
+                }
+
+                // Helper function to get unique producers
+                function getUniqueProducers() {
+                    const producers = new Set(["All"])
+                    collectionsData.forEach(collection => {
+                        if (collection.producer) {
+                            producers.add(collection.producer)
+                        }
+                    })
+                    mediaData.forEach(media => {
+                        if (media.producer) {
+                            producers.add(media.producer)
+                        }
+                    })
+                    return Array.from(producers)
+                }
+
+                // Helper function to check if any filters are active
+                function hasActiveFilters() {
+                    return selectedGenres.length > 0 || 
+                           selectedEra !== "" || 
+                           showTopRated || 
+                           selectedProducer !== ""
+                }
+
+                // Helper function to clear all filters
+                function clearFilters() {
+                    selectedGenres = []
+                    selectedEra = ""
+                    showTopRated = false
+                    selectedProducer = ""
+                    genreFilter.currentIndex = -1
+                    eraFilter.currentIndex = 0
+                    topRatedSwitch.checked = false
+                    producerFilter.currentIndex = 0
+                    filterBar.filtersChanged()
+                }
+
+                // Helper function to get era from year
+                function getEraFromYear(year) {
+                    if (!year) return ""
+                    const decade = Math.floor(year / 10) * 10
+                    return decade + "'s"
+                }
+            }
+
+            // Content Grid/List View
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: colors.surface
                 radius: 8
                 clip: true
+                z: 1
+                Layout.preferredHeight: parent.height - 360
 
                 GridView {
                     id: mediaGrid
@@ -272,31 +440,7 @@ Item {
                     }
                 }
 
-                ListView {
-                    anchors.fill: parent
-                    anchors.margins: 16
-                    visible: !isGridView
-                    model: filteredData
-                    clip: true
-
-                    delegate: MediaListItem {
-                        width: parent.width - 32
-                        height: 80
-                        title: modelData.title || "Untitled"
-                        description: modelData.description || ""
-                        mediaId: modelData.ID
-                        property string collectionName: {
-                            if (modelData.collection_id) {
-                                let collection = root.collectionsData.find(c => c.ID === modelData.collection_id)
-                                return collection ? collection.collection_title : ""
-                            }
-                            return ""
-                        }
-                        onClicked: showMediaDetails(modelData)
-                    }
-
-                    ScrollBar.vertical: ScrollBar {}
-                }
+                
             }
         }
     }
@@ -397,7 +541,6 @@ Item {
                 }
                 height: titleText.height + 16
                 color: "transparent"
-                clip: true
                 Rectangle {
                     id: progressBar
                     anchors {
@@ -405,8 +548,8 @@ Item {
                         right: parent.right
                         bottom: parent.top
                     }
-                    height: 4
-                    color: "#333333"
+                    height: 6
+                    color: colors.background
                     visible: getMediaProgress(card.mediaId) > 0
     
                     Rectangle {
@@ -417,7 +560,12 @@ Item {
                             bottom: parent.bottom
                         }
                         width: parent.width * getMediaProgress(card.mediaId)
-                        color: "#1DB954"
+                        gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 1.0; color: colors.superGreen }
+                                    GradientStop { position: 0.8; color: colors.green }
+                                    GradientStop { position: 0.0; color: colors.green }
+                                }
                     }
                 }
 
