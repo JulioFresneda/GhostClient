@@ -294,8 +294,8 @@ Item {
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
                         Item {
-                        width: 4 // Space to the left of the ComboBox
-                    }
+                            width: 4 // Space to the left of the ComboBox
+                        }
                         contentItem: Item {
                             implicitWidth: genreText.implicitWidth
                             implicitHeight: genreText.implicitHeight
@@ -316,11 +316,26 @@ Item {
                                 font.pointSize: 12
                             }
                         }
-
+                        
                         delegate: CheckDelegate {
                             width: parent.width
                             text: modelData.text
                             checked: filterBar.selectedGenres.includes(modelData.text)
+                            background: Rectangle {
+                                anchors.fill: parent
+                                color: checked ? colors.background : colors.background // Background color for checked/unchecked items
+                            }
+                            contentItem: Text {
+                                anchors {
+                                    left: parent.left
+                                    verticalCenter: parent.verticalCenter
+                                    leftMargin: 12
+                                }
+                                text: modelData.text
+                                color: "white" // Change text color when the item is checked
+                                font.pointSize: 12
+                            }
+                            
                             onCheckedChanged: {
                                 if (checked) {
                                     if (!filterBar.selectedGenres.includes(modelData.text)) {
