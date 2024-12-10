@@ -61,10 +61,10 @@ Item {
 
         // Sidebar
         Rectangle {
-            Layout.preferredWidth: parent.width * 0.1275
+            Layout.preferredWidth: parent.height / 4.5
             Layout.fillHeight: true
             color: colors.surface
-
+            
             Image {
                 z: 0
                 anchors.fill: parent
@@ -106,6 +106,9 @@ Item {
 
                         onClicked: {
                             currentCategory = modelData
+                            selectedCollectionId = ""
+                            selectedCollectionTitle = ""
+                        
                             filterContent()
                         }
                     }
@@ -707,7 +710,7 @@ Item {
 
                             Text {
                                 id: seasonText
-                                text: "Season " + season + ", episode " + episode
+                                text: "Season " + season + " - Episode " + episode
                                 color: "white" // White text color
                                 font.pointSize: 10
                                 horizontalAlignment: Text.AlignHCenter
