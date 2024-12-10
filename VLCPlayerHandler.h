@@ -57,6 +57,7 @@ signals:
     void durationChanged(qint64 duration);
     void positionChanged(qint64 position);
     void playingStateChanged(bool isPlaying);
+    void reallyPlayingStateChanged(bool isReallyPlaying);
     void errorOccurred(const QString& error);
     void mediaLoaded();
     void mediaEnded();
@@ -90,6 +91,7 @@ private:
     QVideoSink* m_videoSink;
     QTimer* m_positionTimer;
     QTimer* m_metadataTimer;
+    QTimer* m_loadingTimer;
     QVariantList m_subtitleTracks;
     QVariantList m_audioTracks;
     QNetworkAccessManager m_networkManager;
@@ -101,6 +103,7 @@ private:
     QWindow* mainWindow;
 
     bool fullScreen;
+
 
 };
 

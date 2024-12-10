@@ -1,6 +1,6 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Controls 
+import QtQuick.Layouts
 import com.ghoststream 1.0
 
 ApplicationWindow {
@@ -9,6 +9,19 @@ ApplicationWindow {
     height: 1080
     color: "#121212" // Dark background
     title: "Ghost Stream"
+
+    QtObject {
+        id: colors
+        property string background: "#050505"
+        property string surface: "#1E1E1E"
+        property string primary: "#FCF7F8"
+        property string textPrimary: "#050505"
+        property string textSecondary: "#FCF7F8"
+        property string strongViolet: "#290D3D"
+        property string strongWhite: "#e2e2e2"
+        property string green: "#419A38"
+        property string superGreen: "#66f557"
+    }
 
     Login {
         id: loginManager
@@ -89,16 +102,20 @@ ApplicationWindow {
                     delegate: Item {
                         width: 150
                         height: 150
-
+                        //bottomLeftRadius: 50
+                        //bottomRightRadius: 5
                         Rectangle {
                             id: profileRect
                             width: 150
                             height: 150
                             //radius: 12
-                            color: "#290D3D"
+                            
                             anchors.horizontalCenter: parent.horizontalCenter
                             scale: 1.0
-
+                            color: colors.strongWhite
+                            //border.width: 5
+                            //bottomLeftRadius: 50
+                            //bottomRightRadius: 5
                             Rectangle {
                                 anchors.fill: parent
                                 radius: parent.radius
@@ -115,12 +132,39 @@ ApplicationWindow {
                                 source: "qrc:/media/ghosts/" + model.pictureID
                                 anchors {
                                     fill: parent
-                                    margins: 2
+                                    margins: 5
                                 }
                                 fillMode: Image.PreserveAspectFit
                             }
 
-                            // Hover effect
+                            Rectangle {
+                                anchors {
+                                    top: profileRect.bottom
+                                    topMargin: -5
+                                    horizontalCenter: profileRect.horizontalCenter
+                                }
+                                width: 150 // Add padding
+                                height: contentText.height + 10 // Add padding
+                                color: "white"
+                                bottomLeftRadius: 50
+                                bottomRightRadius: 50  // Slightly rounded corners
+                                border.width: 5  // Border width
+                                border.color: colors.strongWhite
+
+                                Text {
+                                    id: contentText
+                                    text: model.profileID
+                                    color: "black"
+                                    font {
+                                        pointSize: 16
+                                       // weight: Font.Light
+                                    }
+                                    anchors.centerIn: parent
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
                             
 
                             MouseArea {
@@ -140,31 +184,7 @@ ApplicationWindow {
                             }
                         }
 
-                        Rectangle {
-                            anchors {
-                                top: profileRect.bottom
-                                topMargin: 15
-                                horizontalCenter: profileRect.horizontalCenter
-                            }
-                            width: 150 // Add padding
-                            height: contentText.height + 10 // Add padding
-                            color: "#050505"  // Dark background color
-                            radius: 0  // Slightly rounded corners
-                            border.width: 2  // Border width
-                            border.color: "#290D3D"
-
-                            Text {
-                                id: contentText
-                                text: model.profileID
-                                color: "#FFFFFF"
-                                font {
-                                    pointSize: 16
-                                    weight: Font.Light
-                                }
-                                anchors.centerIn: parent
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                        }
+                        
                     }
                 }
 

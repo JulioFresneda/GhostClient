@@ -35,6 +35,7 @@ bool MediaPlayer::isPlaying() const {
     return m_vlcPlayer->isPlaying();
 }
 
+
 qint64 MediaPlayer::position() const {
     return m_vlcPlayer->position();
 }

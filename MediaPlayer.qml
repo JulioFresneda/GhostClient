@@ -12,8 +12,95 @@ Rectangle {
     required property string title
     required property var mediaMetadata
 
+    property bool isLoading: true
+    property real loadingPos: -1
+    property int loadingPosCounter: 0
     signal closeRequested
     signal mediaEnded
+
+    function loadingPosFun(){
+        if (isLoading && loadingPos < mediaPlayer.position){
+            loadingPos = mediaPlayer.position
+            loadingPosCounter += 1
+        }
+        if (loadingPosCounter == 3){
+            isLoading = false
+        }
+    }
+
+    Window {
+        id: floatingWindow
+        visible: isLoading
+        flags: Qt.FramelessWindowHint | Qt.Window
+        color: "transparent" // Set transparent background for the window
+        width: root.width
+        height: root.height
+
+        Timer {
+            id: periodicTimer
+            interval: 1000 // Call every 1000 ms (1 second)
+            running: true
+            repeat: true
+            onTriggered: {
+                console.log("TIMER")
+                root.loadingPosFun()
+            }
+        }
+
+
+        Rectangle {
+            id: loadingScreen
+            color: "black"
+            anchors.fill: parent
+
+            Image {
+                id: loadingImage
+                source: "qrc:/media/loading.png" // Path to your loading image
+                anchors.centerIn: parent
+                scale: 0.5
+                transform: Rotation {
+                    id: rotation
+                    origin.x: loadingImage.width / 2
+                    origin.y: loadingImage.height / 2
+                    angle: 0
+                }
+                
+            }
+
+            RotationAnimation {
+                id: rotateAnimation
+                target: rotation
+                property: "angle"
+                from: 0
+                to: 360
+                duration: 3000 // 3 seconds
+                loops: Animation.Infinite
+                running: false
+            }
+
+            Timer {
+                id: startDelayTimer
+                interval: 100 // 3 seconds delay
+                running: true
+                repeat: false
+                onTriggered: {
+                    rotateAnimation.start(); // Start the animation after the timer ends
+                }
+            }
+        }
+
+
+        // Ensure the window stays in sync with the parent
+        Component.onCompleted: {
+            let globalPos = root.mapToGlobal(Qt.point(0, 0));
+            x = globalPos.x;
+            y = globalPos.y;
+            root.widthChanged.connect(() => width = root.width);
+            root.heightChanged.connect(() => height = root.height);
+            //isLoading = false
+            
+        }
+    }
 
     // Create a basic column layout
     ColumnLayout {
@@ -30,12 +117,13 @@ Rectangle {
             VideoOutput {
                 id: videoOutput
                 anchors.fill: parent
+                visible: false
             }
 
             VLCPlayerHandler {
                 id: mediaPlayer
                 videoSink: videoOutput.videoSink
-
+                
                 Component.onCompleted: {
                     if (root.mediaId) {
                         if (root.mediaMetadata !== undefined) {
@@ -256,4 +344,6 @@ Rectangle {
         return minutes.toString().padStart(2, '0') + ':' + 
                seconds.toString().padStart(2, '0')
     }
+
+    
 }

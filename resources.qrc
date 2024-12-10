@@ -8,5 +8,6 @@
         <file>media/wallpaper_login_1.png</file>
         <file>media/sidebar.png</file>
         <file>media/bg.png</file>
+        <file>media/loading.png</file>
     </qresource>
 </RCC>

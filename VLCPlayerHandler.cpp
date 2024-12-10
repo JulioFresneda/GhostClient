@@ -36,11 +36,12 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
         //"--no-video-title-show",
         //"--clock-jitter=0",
         //"--no-mouse-events",
-        //"--input-fast-seek",
+        "--input-fast-seek",
         //"--network-caching=1000",
         //"--adaptive-maxwidth=1920",
         //"--verbose=0",
-        "--quiet"
+        "--quiet",
+        //"--subpicture-height=3000"
         //"--file-logging",             // Enable file logging
         //"--logfile=C:\\Users\\julio\\Documents\\vlc-log.txt"
     };
@@ -65,8 +66,9 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     m_positionTimer->setInterval(100);
 
     m_metadataTimer = new QTimer(this);
-    connect(m_positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaMetadataOnServer);
+    connect(m_metadataTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaMetadataOnServer);
     m_metadataTimer->setInterval(30000);
+
 
     libvlc_log_set(m_vlcInstance, vlcLogCallback, nullptr);
 }
@@ -121,7 +123,7 @@ void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
         while (!(state == libvlc_Playing || state == libvlc_Paused)) {
             state = libvlc_media_player_get_state(m_mediaPlayer);;
         }
-        m_isPlaying = true;
+        //m_isPlaying = true;
         if (percentage_watched > 0.0) {
             libvlc_media_player_set_position(m_mediaPlayer, percentage_watched);
             libvlc_time_t currentTime = libvlc_media_player_get_time(m_mediaPlayer);
@@ -129,7 +131,12 @@ void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
             float position = libvlc_media_player_get_position(m_mediaPlayer);
             emit positionChanged(currentTime);
         }
+        while (!(state == libvlc_Playing || state == libvlc_Paused)) {
+            state = libvlc_media_player_get_state(m_mediaPlayer);;
+        }
+        m_isPlaying = true;
         m_positionTimer->start(); // Start the timer when playing
+        m_metadataTimer->start();
         emit playingStateChanged(true);
     }
 }

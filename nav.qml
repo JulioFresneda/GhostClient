@@ -498,8 +498,14 @@ Item {
                     Button {
                         text: "Clear Filters"
                         flat: true
-                        visible: hasActiveFilters()
-                        onClicked: clearFilters()
+                        visible: true
+                        onClicked: {
+                            filterBar.selectedGenres = []
+                            filterBar.selectedEras = []
+                            filterBar.showTopRated = false
+                            filterBar.selectedDirector = "All"
+                            filterBar.selectedProducer = "All"
+                        }
 
                         contentItem: Text {
                             text: parent.text
@@ -968,6 +974,9 @@ Item {
         currentMediaId = mediaItem.ID
         isPlayerVisible = true
     }
+
+    
+
     Connections {
         target: filterBar
         function onFiltersChanged() {
