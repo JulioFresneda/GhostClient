@@ -250,12 +250,12 @@ Item {
                 Layout.preferredHeight: filterBarRowLayout.implicitHeight + (2 * padding)
                 color: colors.surface
                 radius: 8
-                
+                visible: selectedCollectionId === "" ? true : false
                 z: 2
                 property int padding: 8
                 // Properties to store selected filters
                 property var selectedGenres: []
-                property string selectedEra: ""
+                property var selectedEras: []
                 property bool showTopRated: false
                 property string selectedDirector: ""
                 property string selectedProducer: ""
@@ -358,21 +358,92 @@ Item {
                     ComboBox {
                         id: eraFilter
                         Layout.preferredWidth: 120
-                        model: ["All", "60's", "70's", "80's", "90's", "2000's", "2010's", "2020's"]
-                        displayText: currentText === "All" ? "Era" : currentText
-                        onActivated: {
-                            selectedEra = currentText === "All" ? "" : currentText
-                            filterBar.filtersChanged()
+                        model: ["60's", "70's", "80's", "90's", "2000's", "2010's", "2020's"]
+                        displayText: filterBar.selectedEras.length > 0 ?
+                                     filterBar.selectedEras.join(", ") : "Era"
+
+                        background: Rectangle {
+                            color: colors.background
+                            radius: 4
                         }
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitHeight: 40
+                        Item {
+                            width: 4 // Space to the left of the ComboBox
+                        }
+                        contentItem: Item {
+                            implicitWidth: eraText.implicitWidth
+                            implicitHeight: eraText.implicitHeight
+
+                            Text {
+                                id: eraText
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    leftMargin: 12  // Increased left padding
+                                    rightMargin: 8  // Added right padding
+                                }
+                                text: eraFilter.displayText
+                                color: "white"
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                font.pointSize: 12
+                            }
+                        }
+
+                        delegate: CheckDelegate {
+                            width: parent.width
+                            text: modelData
+                            checked: filterBar.selectedEras.includes(modelData)
+                            background: Rectangle {
+                                anchors.fill: parent
+                                color: checked ? colors.background : colors.background // Background color for checked/unchecked items
+                            }
+                            contentItem: Text {
+                                anchors {
+                                    left: parent.left
+                                    verticalCenter: parent.verticalCenter
+                                    leftMargin: 12
+                                }
+                                text: modelData
+                                color: "white" // Change text color when the item is checked
+                                font.pointSize: 12
+                            }
+
+                            onCheckedChanged: {
+                                if (checked) {
+                                    if (!filterBar.selectedEras.includes(modelData)) {
+                                        filterBar.selectedEras.push(modelData)
+                                    }
+                                } else {
+                                    const index = filterBar.selectedEras.indexOf(modelData)
+                                    if (index > -1) {
+                                        filterBar.selectedEras.splice(index, 1)
+                                    }
+                                }
+                                console.log(filterBar.selectedEras)
+                                filterBar.filtersChanged()
+                            }
+                        }
+
+                        //closePolicy: Popup.CloseOnEscape // Keep the popup open for multiple selections
                     }
+
 
                     // Top Rated Switch
                     Switch {
                         id: topRatedSwitch
-                        text: "Top Rated (8+)"
-                        checked: showTopRated
+                        text: "<font color=\"white\">Top Rated (8+ IMBD)</font>"
+                        checked: filterBar.showTopRated
+                        background: Rectangle {
+                            color: colors.background
+                            radius: 4
+                        }
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitHeight: 40
                         onCheckedChanged: {
-                            showTopRated = checked
+                            filterBar.showTopRated = checked
                             filterBar.filtersChanged()
                         }
                     }
@@ -380,11 +451,42 @@ Item {
                     // Producer ComboBox
                     ComboBox {
                         id: producerFilter
-                        Layout.preferredWidth: 150
+                        Layout.preferredWidth: 250
+                        background: Rectangle {
+                            color: colors.background
+                            radius: 4
+                        }
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitHeight: 40
                         model: filterHandler.getUniqueProducers(collectionsData, mediaData)
                         displayText: currentText || "Producer"
+                        contentItem: Item {
+                            implicitWidth: producerText.implicitWidth
+                            implicitHeight: producerText.implicitHeight
+
+                            Text {
+                                id: producerText
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    leftMargin: 12
+                                    rightMargin: 8
+                                }
+                                text: producerFilter.displayText
+                                color: "white"
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                font.pointSize: 12
+                            }
+                        }
+                        
+
+
+
+                           
                         onActivated: {
-                            selectedProducer = currentText === "All" ? "" : currentText
+                            filterBar.selectedProducer = currentText === "All" ? "" : currentText
                             filterBar.filtersChanged()
                         }
                     }
@@ -437,7 +539,7 @@ Item {
                     anchors.fill: parent
                     cellWidth: 200
                     cellHeight: 300
-                    model: filteredData.length > 0 ? filteredData : mediaData
+                    model: filteredData
 
                     delegate: MediaCard {
                         width: 180
@@ -448,6 +550,8 @@ Item {
                                (currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) ?
                                modelData.collection_title || "" :
                                modelData.title || ""
+                        season: (modelData.season || "")
+                        episode: (modelData.episode || "")
                         mediaId: modelData.ID || ""
                         property bool isCollection: modelData.collection_title ? true : false
                     }
@@ -502,6 +606,8 @@ Item {
     component MediaCard: Rectangle {
         id: card
         property string title: ""
+        property string season: ""
+        property string episode: ""
         property string mediaId: ""
         signal clicked
         color: "white"
@@ -552,7 +658,7 @@ Item {
                     right: contentContainer.right
                     bottom: contentContainer.bottom
                 }
-                height: titleText.height + 16
+                height: season === "" ? titleText.height + 16 : titleText.height + 50
                 color: "transparent"
                 Rectangle {
                     id: progressBar
@@ -581,24 +687,57 @@ Item {
                                 }
                     }
                 }
+                
+                Item {
+                    width: parent.width
+                    // Dynamically adjust height to fit both texts with spacing
+                    height: (season !== "" ? seasonText.implicitHeight + 12 : 0) + titleText.implicitHeight + 18 
 
-                Text {
-                    id: titleText
-                    anchors {
-                        left: parent.left
-                        right: parent.right
-                        verticalCenter: parent.verticalCenter
-                        margins: 6
+                    Column {
+                        anchors.fill: parent
+                        spacing: 6 // Space between the two text elements
+                        anchors.margins: season !== "" ? 0 : 6
+
+                        Rectangle {
+                            visible: season !== "" // Show only if season is not empty
+                            width: parent.width
+                            height: seasonText.implicitHeight + 12 // Add padding inside the Rectangle
+                            color: "black" // Set the background color
+                            //radius: 4
+
+                            Text {
+                                id: seasonText
+                                text: "Season " + season + ", episode " + episode
+                                color: "white" // White text color
+                                font.pointSize: 10
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                wrapMode: Text.WordWrap
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    margins: 6 // Add margins to prevent text from touching the edges
+                                }
+                            }
+                        }
+
+                        Text {
+                            id: titleText
+                            text: title
+                            color: "black"
+                            font.pointSize: 12
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap
+                            width: parent.width - 12 // Explicit width with margin for wrapping
+                        }
                     }
-                    text: title
-                    color: "black"
-                    font.pointSize: 12
-                    horizontalAlignment: Text.AlignHCenter
-                    elide: Text.ElideRight
-
-                    wrapMode: Text.WordWrap
-                    
                 }
+
+
+
 
                 
                 
@@ -809,8 +948,8 @@ Item {
             filteredResults = filterHandler.filterByRating(filteredResults, 8.0)
         }
 
-        if (filterBar.selectedEra) {
-            filteredResults = filterHandler.filterByEra(filteredResults, filterBar.selectedEra)
+        if (filterBar.selectedEras.length > 0) {
+            filteredResults = filterHandler.filterByEra(filteredResults, filterBar.selectedEras)
         }
 
         if (filterBar.selectedProducer && filterBar.selectedProducer !== "All") {

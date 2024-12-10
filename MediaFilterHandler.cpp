@@ -50,7 +50,7 @@ QVariantList MediaFilterHandler::getUniqueGenres(const QVariantList& collections
 
 QStringList MediaFilterHandler::getUniqueProducers(const QVariantList& collections, const QVariantList& media) {
     QSet<QString> producers;
-    producers.insert("All"); // Always include "All" option
+    //producers.insert("All"); // Always include "All" option
 
     // Extract producers from collections
     for (const QVariant& collection : collections) {
@@ -70,7 +70,10 @@ QStringList MediaFilterHandler::getUniqueProducers(const QVariantList& collectio
         }
     }
 
-    return producers.values();
+    QStringList producers_list = producers.values();
+    producers_list.prepend("All");
+    return producers_list;
+
 }
 
 bool MediaFilterHandler::mediaMatchesGenres(const QVariantMap& media, const QStringList& genres) {
@@ -108,10 +111,13 @@ QVariantList MediaFilterHandler::filterByRating(const QVariantList& data, double
     QVariantList filtered;
     for (const QVariant& item : data) {
         QVariantMap itemMap = item.toMap();
-        double rating = parseRating(itemMap["rating"]);
+        double rating = parseRating(itemMap["rating"]) != 0 ?
+            parseRating(itemMap["rating"]) :
+            parseRating(itemMap["collection_rating"]);
         if (rating >= minRating) {
             filtered.append(item);
         }
+        
     }
     return filtered;
 }
@@ -122,14 +128,14 @@ QString MediaFilterHandler::getEraFromYear(int year) {
     return QString::number(decade) + "'s";
 }
 
-QVariantList MediaFilterHandler::filterByEra(const QVariantList& data, const QString& era) {
-    if (era.isEmpty()) return data;
+QVariantList MediaFilterHandler::filterByEra(const QVariantList& data, const QStringList& eras) {
+    if (eras.isEmpty()) return data;
 
     QVariantList filtered;
     for (const QVariant& item : data) {
         QVariantMap itemMap = item.toMap();
-        int year = itemMap["year"].toInt();
-        if (getEraFromYear(year) == era) {
+        QString era = getEraFromYear(itemMap["year"].toInt());
+        if (eras.contains(era)) {
             filtered.append(item);
         }
     }

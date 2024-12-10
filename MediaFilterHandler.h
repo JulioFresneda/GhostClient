@@ -17,7 +17,7 @@ public:
     Q_INVOKABLE QStringList getUniqueProducers(const QVariantList& collections, const QVariantList& media);
     Q_INVOKABLE QVariantList filterByGenre(const QVariantList& data, const QStringList& genres);
     Q_INVOKABLE QVariantList filterByRating(const QVariantList& data, double minRating);
-    Q_INVOKABLE QVariantList filterByEra(const QVariantList& data, const QString& era);
+    Q_INVOKABLE QVariantList filterByEra(const QVariantList& data, const QStringList& eras);
     Q_INVOKABLE QVariantList filterByProducer(const QVariantList& data, const QString& producer);
     Q_INVOKABLE QString getEraFromYear(int year);
 
