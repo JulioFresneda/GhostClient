@@ -582,11 +582,16 @@ Item {
             id: playerLoader
             anchors.fill: parent
             active: isPlayerVisible
+            onLoaded: {
+                // Connect the child's signal to a function in the parent
+                playerLoader.item.nextEpisode.connect(playerContainer.onNextEpisode)
+            }
             sourceComponent: Component {
                 MediaPlayer {
                     mediaId: currentMediaId
                     title: selectedCollectionTitle
                     mediaMetadata: root.mediaMetadata[currentMediaId]
+                    
                     onCloseRequested: {
                         isPlayerVisible = false
                         currentMediaId = ""
@@ -604,6 +609,30 @@ Item {
                         }
                     }
                     
+                }
+            }
+        }
+        function onNextEpisode(){
+            if (selectedCollectionId) {
+                // Find current media in filtered data
+                let currentIndex = filteredData.findIndex(media => media.ID === currentMediaId)
+                if (currentIndex >= 0 && currentIndex < filteredData.length - 1) {
+                    // Play next episode
+                    currentMediaId = filteredData[currentIndex + 1].ID
+                    mediaId = currentMediaId
+                    mediaMetadata = root.mediaMetadata[currentMediaId]
+                }
+            }
+        }
+        function onLastEpisode(){
+            if (selectedCollectionId) {
+                // Find current media in filtered data
+                let currentIndex = filteredData.findIndex(media => media.ID === currentMediaId)
+                if (currentIndex >= 1 && currentIndex < filteredData.length) {
+                    // Play next episode
+                    currentMediaId = filteredData[currentIndex - 1].ID
+                    mediaId = currentMediaId
+                    mediaMetadata = root.mediaMetadata[currentMediaId]
                 }
             }
         }

@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
 import com.ghoststream 1.0
-
+import QtQuick.VectorImage
 Rectangle {
     id: root
     color: "black"
@@ -17,6 +17,8 @@ Rectangle {
     property int loadingPosCounter: 0
     signal closeRequested
     signal mediaEnded
+    signal nextEpisode()
+    signal lastEpisode() 
 
     function loadingPosFun(){
         if (isLoading && loadingPos < mediaPlayer.position){
@@ -30,7 +32,7 @@ Rectangle {
 
     Window {
         id: floatingWindow
-        visible: isLoading
+        visible: isLoading && false
         flags: Qt.FramelessWindowHint | Qt.Window
         color: "transparent" // Set transparent background for the window
         width: root.width
@@ -188,14 +190,19 @@ Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width
                             height: 4
-                            color: "#808080"
+                            color: "#050505"
+                                
                             radius: 2
 
                             Rectangle {
                                 width: mediaPlayer.duration > 0 ? 
                                        (mediaPlayer.position / mediaPlayer.duration) * parent.width : 0
                                 height: parent.height
-                                color: progressMouseArea.pressed ? "#1ED760" : "#1DB954"
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 1.0; color: colors.superGreen }
+                                    GradientStop { position: 0.8; color: colors.green }
+                                    GradientStop { position: 0.0; color: colors.green }}
                                 radius: 2
                             }
                         }
@@ -208,7 +215,7 @@ Rectangle {
                             width: progressMouseArea.pressed ? 20 : 16
                             height: width
                             radius: width / 2
-                            color: progressMouseArea.pressed ? "#1ED760" : "#1DB954"
+                            color: colors.superGreen
                         }
 
                         MouseArea {
@@ -239,53 +246,188 @@ Rectangle {
 
                 // Controls
                 RowLayout {
+                    
                     Layout.fillWidth: true
-                    spacing: 16
-
+                    //spacing: 16
+                    Layout.alignment: Qt.AlignVCenter
                     Button {
-                        text: "←"
+                        //text: "←"
                         onClicked: root.closeRequested()
                         flat: true
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 24
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered ? "qrc:/media/buttons/left_hover.svg" : "qrc:/media/buttons/left.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
                         }
                         background: Rectangle {
                             color: "transparent"
                         }
                     }
-
+                    Item { Layout.preferredWidth: 800 }
                     Button {
-                        text: mediaPlayer.isPlaying ? "⏸" : "▶"
+                        onClicked: mediaPlayer.back30sec();
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered ? "qrc:/media/buttons/back_hover.svg" : "qrc:/media/buttons/back.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+                    }
+                    Button {
                         onClicked: mediaPlayer.isPlaying ? mediaPlayer.pauseMedia() : mediaPlayer.playMedia(0)
                         flat: true
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 24
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        padding: 0
+                        background: Rectangle {
+                            color: "transparent" // Transparent background
+                            
+                        }
+                        
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered
+                                ? (mediaPlayer.isPlaying ? "qrc:/media/buttons/play_hover.svg" : "qrc:/media/buttons/pause_hover.svg")
+                                : (mediaPlayer.isPlaying ? "qrc:/media/buttons/play.svg" : "qrc:/media/buttons/pause.svg")
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                    }
+                    Button {
+                        onClicked: mediaPlayer.forward30sec();
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
                         }
                         background: Rectangle {
                             color: "transparent"
                         }
                     }
-
-                    Text {
-                        text: "Audio:"
-                        color: "white"
-                        font.pixelSize: 12
+                    
+                    Button {
+                        onClicked: {
+                            mediaPlayer.stop()
+                            root.nextEpisode()
+                            mediaPlayer.play()
+                        }
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                        }
                     }
-
+                    Button {
+                        onClicked: mediaPlayer.setFullScreen(true)
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered ? "qrc:/media/buttons/fullscreen_hover.svg" : "qrc:/media/buttons/fullscreen.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+                    }
+                    
+                    Item { Layout.fillWidth: true }
+                    Button {
+                        //onClicked: 
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: "qrc:/media/buttons/audio.svg"                            
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+                    }
+                    
                     ComboBox {
                         id: audioSelector
                         Layout.preferredWidth: 150
+                        Layout.preferredHeight: 24
                         model: mediaPlayer.audioTracks
                         textRole: "name"
                         valueRole: "id"
                         currentIndex: 0
                         onActivated: mediaPlayer.setAudioTrack(currentValue)
+                        background: Rectangle {
+                            z: -1
+                            color: colors.background
+                            radius: 2
+                            border.color: "white"
+                            //border.width: 4
+                        }
+                        contentItem: Text {
+                            text: audioSelector.currentText
+                            color: "white"         // Text color
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignLeft
+                            elide: Text.ElideRight
+                            anchors.leftMargin: 8
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
-
+                    Button {
+                        //onClicked: 
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: "qrc:/media/buttons/subtitles.svg"                            
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+                    }
                     ComboBox {
                         id: subtitleSelector
                         Layout.preferredWidth: 150
@@ -293,6 +435,7 @@ Rectangle {
                         textRole: "name"
                         valueRole: "id"
                         currentIndex: 0
+                        
                         onActivated: {
                             let trackId = currentValue
                             if (trackId === -1) {
@@ -301,21 +444,28 @@ Rectangle {
                                 mediaPlayer.setSubtitleTrack(trackId)
                             }
                         }
+                        Layout.preferredHeight: 24
+                        background: Rectangle {
+                            z: -1
+                            color: colors.background
+                            radius: 2
+                            border.color: "white"
+                            //border.width: 4
+                        }
+                        contentItem: Text {
+                            text: subtitleSelector.currentText
+                            color: "white"         // Text color
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignLeft
+                            elide: Text.ElideRight
+                            anchors.leftMargin: 8
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        
                     }
 
-                    Button {
-                        text: "Full screen"
-                        onClicked: mediaPlayer.setFullScreen(true)
-                        flat: true
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            font.pixelSize: 24
-                        }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
-                    }
+                    
                 }
             }
         }

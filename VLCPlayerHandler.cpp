@@ -36,7 +36,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
         //"--no-video-title-show",
         //"--clock-jitter=0",
         //"--no-mouse-events",
-        "--input-fast-seek",
+        //"--input-fast-seek",
         //"--network-caching=1000",
         //"--adaptive-maxwidth=1920",
         //"--verbose=0",
@@ -123,7 +123,7 @@ void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
         while (!(state == libvlc_Playing || state == libvlc_Paused)) {
             state = libvlc_media_player_get_state(m_mediaPlayer);;
         }
-        //m_isPlaying = true;
+        m_isPlaying = true;
         if (percentage_watched > 0.0) {
             libvlc_media_player_set_position(m_mediaPlayer, percentage_watched);
             libvlc_time_t currentTime = libvlc_media_player_get_time(m_mediaPlayer);
@@ -134,7 +134,7 @@ void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
         while (!(state == libvlc_Playing || state == libvlc_Paused)) {
             state = libvlc_media_player_get_state(m_mediaPlayer);;
         }
-        m_isPlaying = true;
+        //m_isPlaying = true;
         m_positionTimer->start(); // Start the timer when playing
         m_metadataTimer->start();
         emit playingStateChanged(true);
@@ -169,6 +169,25 @@ void VLCPlayerHandler::stop() {
 
         // Reset position to 0
         emit positionChanged(0);
+    }
+}
+
+void VLCPlayerHandler::forward30sec() {
+    if (m_mediaPlayer) {
+        libvlc_time_t current_time = libvlc_media_player_get_time(m_mediaPlayer);
+        libvlc_time_t new_time = current_time + 30000;
+        libvlc_media_player_set_time(m_mediaPlayer, new_time);
+        // Emit one final position update
+        emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
+    }
+}
+void VLCPlayerHandler::back30sec() {
+    if (m_mediaPlayer) {
+        libvlc_time_t current_time = libvlc_media_player_get_time(m_mediaPlayer);
+        libvlc_time_t new_time = current_time - 30000;
+        libvlc_media_player_set_time(m_mediaPlayer, new_time);
+        // Emit one final position update
+        emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
     }
 }
 
@@ -631,10 +650,11 @@ void VLCPlayerHandler::setSubtitleTrack(int trackId) {
         libvlc_track_description_t* currentDesc = tracks;
         while (currentDesc) {
             qDebug() << "Track ID:" << currentDesc->i_id << "Name:" << currentDesc->psz_name;
-            currentDesc = currentDesc->p_next;
+            
             if (currentDesc->i_id == trackId) {
                 m_currentSubtitlesCode = currentDesc->psz_name;
             }
+            currentDesc = currentDesc->p_next;
         }
 
         // Release the memory used by the track descriptions

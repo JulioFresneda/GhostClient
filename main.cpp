@@ -36,7 +36,6 @@ int main(int argc, char* argv[])
 
 
 
-
     // Register types with the correct template parameters
     qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");
     qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");

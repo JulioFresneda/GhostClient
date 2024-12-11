@@ -49,6 +49,8 @@ public slots:
     void pauseMedia();
     void loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata);
     void stop();
+    void forward30sec();
+    void back30sec();
 
 private slots:
     void onMediaStateChanged();

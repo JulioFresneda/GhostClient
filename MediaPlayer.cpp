@@ -60,6 +60,14 @@ void MediaPlayer::stop() {
     m_vlcPlayer->stop();
 }
 
+void MediaPlayer::forward30sec() {
+    m_vlcPlayer->forward30sec();
+}
+
+void MediaPlayer::back30sec() {
+    m_vlcPlayer->back30sec();
+}
+
 void MediaPlayer::close() {
     stop();
     emit closeRequested();

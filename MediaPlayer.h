@@ -32,6 +32,8 @@ public slots:
     void pause();
     void stop();
     void close();
+    void forward30sec();
+    void back30sec();
 
 signals:
     void mediaIdChanged();
