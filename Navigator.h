@@ -113,5 +113,12 @@ private:
     QSet<QString> parseGenres(const QString& genresJson);
 
     QList<QVariantMap> getMediaByCollection(QString collectionId);
+    bool mediaInCollection(QString mediaId, QString collectionId);
+
+    void filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections, QString searchText);
+    void filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections);
+    void filterByFilterBarMedia(QList<QVariantMap>& filteredMedia);
+    void filterByFilterBarCollection(QList<QVariantMap>& filteredCollections);
+    void filterByChosenCollection(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections);
 };
 

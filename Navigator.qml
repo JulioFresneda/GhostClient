@@ -218,7 +218,7 @@ Item {
                             radius: 4
                         }
 
-                        onTextChanged: navigator.updateFilteredData()
+                        onTextChanged: navigator.updateFilteredData(searchField.text)
                     }
 
                     Item { Layout.fillWidth: true }
@@ -303,18 +303,21 @@ Item {
                     Item {
                         width: 4 // Space to the left of the ComboBox
                     }
+
+                    Connections {
+                        target: navigator
+                        onMediaLoaded: {
+                            genreFilter.model = navigator.getUniqueGenres();
+                            producerFilter.model = navigator.getUniqueProducers();
+                        }
+                    }
                     // Genres ComboBox
                     ComboBox {
                         id: genreFilter
                         Layout.preferredWidth: 150
                         model: navigator.getUniqueGenres()
 
-                        Connections {
-                            target: navigator
-                            onMediaLoaded: {
-                                genreFilter.model = navigator.getUniqueGenres();
-                            }
-                        }
+                        
                         textRole: "text"
                         displayText: navigator.selectedGenres.length > 0 ?
                                      navigator.selectedGenres.join(", ") : "Genre"
@@ -529,11 +532,7 @@ Item {
                         flat: true
                         visible: true
                         onClicked: {
-                            navigator.selectedGenres = []
-                            navigator.selectedEras = []
-                            navigator.showTopRated = false
-                            navigator.selectedDirector = "All"
-                            navigator.selectedProducer = "All"
+                            navigator.clearFilters()
                         }
 
                         contentItem: Text {

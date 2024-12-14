@@ -232,11 +232,17 @@ QStringList Navigator::getUniqueProducers() {
 }
 
 void Navigator::clearFilters() {
-    m_selectedDirector = "All";
-    m_selectedProducer = "All";
+    //m_selectedDirector = "";
+    m_selectedProducer = "";
     m_selectedGenres.clear();
     m_selectedEras.clear();
     m_showTopRated = false;
+    
+    //emit selectedDirectorChanged();
+    emit selectedProducerChanged();
+    emit selectedGenresChanged();
+    emit selectedErasChanged();
+    emit showTopRatedChanged();
 }
 
 QString Navigator::getNextEpisode(QString currentMediaId, int index) {
@@ -314,79 +320,140 @@ QSet<QString> Navigator::parseGenres(const QString& genresJson) {
     return genres;
 }
 
+void Navigator::filterByChosenCollection(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections){
+    if (m_selectedCollectionId != "") {
+        filteredCollections.clear();
+        QList<QVariantMap> _tmp;
+        for (const auto& media : filteredMedia) {
+            if (media["collection_id"] != m_selectedCollectionId) {
+                _tmp.append(media);
+            }
+        }
+        for (const auto& media : _tmp) {
+            filteredMedia.removeAll(media);
+        }
+    }
+}
+
+
 void Navigator::updateFilteredData(QString searchText) {
     QList<QVariantMap> filteredMedia;
     QList<QVariantMap> filteredCollections;
-    for (const auto& media : m_mediaData) {
-
-        if (m_currentCategory == "continueWatching") {
-            if (getMediaProgress(media["ID"].toString()) > 0){
-                if (anyValueContains(media, searchText)) {
-                    filteredMedia.append(media);
-                }
-            }
-        }
-        if (m_currentCategory == "movies" and media["type"].toString() == "movie") {
-            bool add = false;
-            if (m_selectedCollectionId == "") {
-                if (!m_groupByCollection or media["collection_id"] == "") {
-                    add = true;
-                }
-            }
-            else if (media["collection_id"] == m_selectedCollectionId) {
-                add = true;
-            }
-                      
-            if (add and anyValueContains(media, searchText)) {
-                filteredMedia.append(media);
-            }
-            
-        }
-
-        if (m_currentCategory == "series" and m_selectedCollectionId != "") {
-            if (media["collection_id"] == m_selectedCollectionId) {
-                if (anyValueContains(media, searchText)) {
-                    filteredMedia.append(media);
-                }
-            }
-        }
-
-        
-
-            
-    }
-    if (m_selectedCollectionId == "" and m_currentCategory != "continueWatching" and (m_groupByCollection or m_currentCategory == "series")) {
-        for (const auto& collection : m_collectionsData) {
-        
-            QString type = collection["collection_type"].toString();
-            if (m_currentCategory == "series" and type == "serie" or m_currentCategory == "movies" and type == "movies") {
-                if (anyValueContains(collection, searchText)) {
-                    filteredCollections.append(collection);
-                }
-            }
-        }
-    }
+    
+    filterByCategory(filteredMedia, filteredCollections); // First always, fills variables
+    filterByChosenCollection(filteredMedia, filteredCollections);
+    filterBySearchText(filteredMedia, filteredCollections, searchText);
 
     // Genres - collections
     // Rate - collections and medias
     // Producer - collections and medias
     // Eras - medias
 
-    QList<QString> filteredBarIDs;
+
+    filterByFilterBarMedia(filteredMedia);
+    filterByFilterBarCollection(filteredCollections);
+    
+    if (m_currentCategory == "continueWatching" or m_selectedCollectionId != "") {
+        filteredCollections.clear();
+    }
+    else {
+        if (!m_groupByCollection and m_currentCategory == "movies") {
+            filteredCollections.clear();
+        }
+        else {
+            for (const auto& collection : filteredCollections) {
+                for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
+                    filteredMedia.removeAll(media);
+                }
+            }
+        }
+    }
+
+    m_filteredData = filteredMedia + filteredCollections;
+    emit filteredDataChanged();
+}
+void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollections) {
+    QList<QString> filteredCollectionIDs;
+    for (const auto& collection : filteredCollections) {
+        filteredCollectionIDs.append(collection["ID"].toString());
+    }
+
+    for (const auto& collection : filteredCollections) {
+        bool remove = false;
+        // If media collection has any genre, use it
+        if (m_selectedGenres.size() > 0) {
+            bool isGenre = false;
+            for (const auto& genre : m_selectedGenres) {
+                for (const auto& mediaGenre : parseGenres(collection["genres"].toString())) {
+                    isGenre = isGenre || genre == mediaGenre;
+                }            
+            }
+            remove = remove || !isGenre;
+        }
+
+        if (m_selectedEras.size() > 0) {
+            bool isEra = false;
+            for (const auto& era : m_selectedEras) {
+                for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
+                    isEra = isEra || era == getEraFromYear(collection["year"].toInt());
+                }
+            }
+            remove = remove || !isEra;
+        }
+        
+        bool isProducer = m_selectedProducer == "" or m_selectedProducer == collection["producer"];
+        for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
+            isProducer = isProducer || m_selectedProducer == media["producer"];
+        }
+        remove = remove || !isProducer;
+
+        if (m_showTopRated) {
+            double rating = collection["collection_rating"].toDouble();
+            remove = remove || rating < 8.0;
+        }
+
+        if (!remove) {
+            filteredCollectionIDs.removeAll(collection["ID"].toString());
+        }
+    }
+
+    for (const auto& mediaId : filteredCollectionIDs) {
+        QVariantMap fm;
+        for (const auto& fmedia : filteredCollections) {
+            if (fmedia["ID"] == mediaId) {
+                fm = fmedia;
+            }
+
+        }
+        filteredCollections.removeAll(fm);
+
+    }
+}
+void Navigator::filterByFilterBarMedia(QList<QVariantMap>& filteredMedia) {
+    QList<QString> filteredMediaIDs;
     for (const auto& media : filteredMedia) {
-        filteredBarIDs.append(media["ID"].toString());
+        filteredMediaIDs.append(media["ID"].toString());
     }
 
     for (const auto& media : filteredMedia) {
         bool remove = false;
+        // If media collection has any genre, use it
         if (m_selectedGenres.size() > 0) {
             bool isGenre = false;
             for (const auto& genre : m_selectedGenres) {
-                QVariantMap collection_genres = getCollection(media["collection_id"].toString());
-                for (const auto& mediaGenre : parseGenres(collection_genres["genres"].toString())) {
-                    isGenre = isGenre || genre == mediaGenre;
+                if (media["collection_id"].toString() != "") {
+                    QVariantMap collection_genres = getCollection(media["collection_id"].toString());
+                    for (const auto& mediaGenre : parseGenres(collection_genres["genres"].toString())) {
+                        isGenre = isGenre || genre == mediaGenre;
+                    }
+                }
+                if (media["genres"] != "") {
+                    for (const auto& mediaGenre : parseGenres(media["genres"].toString())) {
+                        isGenre = isGenre || genre == mediaGenre;
+                    }
                 }
                 
+
             }
             remove = remove || !isGenre;
         }
@@ -399,46 +466,95 @@ void Navigator::updateFilteredData(QString searchText) {
             remove = remove || !isEra;
         }
 
-        remove = remove || m_selectedProducer != "" and m_selectedProducer != media["selectedProducer"];
+        remove = remove || m_selectedProducer != "" and m_selectedProducer != media["producer"];
 
         if (m_showTopRated) {
-            remove = remove || media["rating"].toInt() < 8;
+            remove = remove || media["rating"].toDouble() < 8.0;
         }
 
         if (!remove) {
-            filteredBarIDs.removeAll(media["ID"].toString());
+            filteredMediaIDs.removeAll(media["ID"].toString());
         }
     }
 
-    for (const auto& mediaId : filteredBarIDs) {
+    for (const auto& mediaId : filteredMediaIDs) {
         QVariantMap fm;
         for (const auto& fmedia : filteredMedia) {
             if (fmedia["ID"] == mediaId) {
                 fm = fmedia;
             }
-            
+
         }
         filteredMedia.removeAll(fm);
-        
+
     }
+}
 
+void Navigator::filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections, QString searchText) {   
+    if (searchText != "") {
+        QList<QVariantMap> _tmp;
+        for (const auto& media : filteredMedia) {
+            QVariantMap collection = getCollection(media["collection_id"].toString());
+            QString collection_title = collection["collection_title"].toString();
 
-    if (m_currentCategory != "continueWatching" and (m_groupByCollection or m_currentCategory == "series")) {
-        for (const auto& collection : filteredCollections) {
-            for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
-                filteredMedia.removeAll(media);
+            QVariantMap _tmp_media = media;
+            _tmp_media["collection_title"] = collection_title;
+            if (!anyValueContains(_tmp_media, searchText)) {
+                _tmp.append(media);
             }
-            filteredMedia.append(collection);
+        }
+        for (const auto& media : _tmp) {
+            filteredMedia.removeAll(media);
+        }
+        _tmp.clear();
+        for (const auto& media : filteredCollections) {
+            if (!anyValueContains(media, searchText)) {
+                _tmp.append(media);
+            }
+        }
+        for (const auto& media : _tmp) {
+            filteredCollections.removeAll(media);
+        }
+        _tmp.clear();
+    }
+      
+}
+
+void Navigator::filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections) {
+    for (const auto& media : m_mediaData) {
+
+        if (m_currentCategory == "continueWatching") {
+            if (getMediaProgress(media["ID"].toString()) > 0) {
+                filteredMedia.append(media);
+            }
+        }
+        if (m_currentCategory == "movies" and media["type"].toString() == "movie") {
+            filteredMedia.append(media);
+        }
+
+        if (m_currentCategory == "series" and media["type"].toString() == "episode") {
+            filteredMedia.append(media);
         }
     }
+    if (m_currentCategory != "continueWatching") {
+        for (const auto& collection : m_collectionsData) {
+            QString type = collection["collection_type"].toString();
+            if (m_currentCategory == "series" and type == "serie" or m_currentCategory == "movies" and type == "movies") {
+                filteredCollections.append(collection);
+            }
+        }
+    }
+}
 
 
 
-
-
-
-    m_filteredData = filteredMedia;
-    emit filteredDataChanged();
+bool Navigator::mediaInCollection(QString mediaId, QString collectionId) {
+    for (const auto& media : m_mediaData) {
+        if (media["collection_id"].toString() == collectionId) {
+            return true;
+        }
+    }
+    return false;
 }
 
 QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) {
