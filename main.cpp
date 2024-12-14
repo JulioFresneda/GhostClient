@@ -11,19 +11,6 @@
 
 
 
-// TODO
-// Features
-// - Multiple audios, subtitles - OK
-// - Controls design - OK
-// - Autoplay next episode - OK
-// 
-// Visuals
-// - Loading
-// - Categories
-// - 
-// - Make it prettier
-
-
 
 
 int main(int argc, char* argv[])

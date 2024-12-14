@@ -4,10 +4,21 @@
 #include <QJsonObject>
 Navigator::Navigator(QObject* parent)
     : QObject(parent),
-    m_currentCategory(""),
+    m_currentCategory("continueWatching"),
     m_selectedCollectionId(""),
-    m_showTopRated(false) {
-    // Initialize your sidebar categories or other member variables here if needed.
+    m_selectedGenres(),
+    m_selectedEras(),
+    m_showTopRated(false),
+    m_groupByCollection(true),
+    m_selectedDirector(""),
+    m_selectedProducer(""),
+    m_filteredData(), 
+    m_sidebarCategories({
+        {"continueWatching", "Continuar viendo"},
+        {"series", "Series"},
+        {"movies", "Pelis"}
+    }) {
+
 }
 
 // Getters
@@ -47,6 +58,10 @@ bool Navigator::showTopRated() const {
     return m_showTopRated;
 }
 
+bool Navigator::groupByCollection() const {
+    return m_groupByCollection;
+}
+
 QString Navigator::selectedDirector() const {
     return m_selectedDirector;
 }
@@ -59,13 +74,16 @@ QString Navigator::selectedProducer() const {
 void Navigator::setCurrentCategory(const QString& category) {
     if (m_currentCategory != category) {
         m_currentCategory = category;
+        updateFilteredData();
         emit currentCategoryChanged();
+        
     }
 }
 
 void Navigator::setSelectedCollectionId(const QString& collectionId) {
     if (m_selectedCollectionId != collectionId) {
         m_selectedCollectionId = collectionId;
+        updateFilteredData();
         emit selectedCollectionIdChanged();
     }
 }
@@ -73,6 +91,7 @@ void Navigator::setSelectedCollectionId(const QString& collectionId) {
 void Navigator::setSelectedGenres(const QList<QString>& genres) {
     if (m_selectedGenres != genres) {
         m_selectedGenres = genres;
+        updateFilteredData();
         emit selectedGenresChanged();
     }
 }
@@ -80,6 +99,7 @@ void Navigator::setSelectedGenres(const QList<QString>& genres) {
 void Navigator::setSelectedEras(const QList<QString>& eras) {
     if (m_selectedEras != eras) {
         m_selectedEras = eras;
+        updateFilteredData();
         emit selectedErasChanged();
     }
 }
@@ -87,13 +107,23 @@ void Navigator::setSelectedEras(const QList<QString>& eras) {
 void Navigator::setShowTopRated(bool showTopRated) {
     if (m_showTopRated != showTopRated) {
         m_showTopRated = showTopRated;
+        updateFilteredData();
         emit showTopRatedChanged();
+    }
+}
+
+void Navigator::setGroupByCollection(bool groupByCollection) {
+    if (m_groupByCollection != groupByCollection) {
+        m_groupByCollection = groupByCollection;
+        updateFilteredData();
+        emit groupByCollectionChanged();
     }
 }
 
 void Navigator::setSelectedDirector(const QString& director) {
     if (m_selectedDirector != director) {
         m_selectedDirector = director;
+        updateFilteredData();
         emit selectedDirectorChanged();
     }
 }
@@ -101,6 +131,7 @@ void Navigator::setSelectedDirector(const QString& director) {
 void Navigator::setSelectedProducer(const QString& producer) {
     if (m_selectedProducer != producer) {
         m_selectedProducer = producer;
+        updateFilteredData();
         emit selectedProducerChanged();
     }
 }
@@ -128,15 +159,7 @@ QString Navigator::getMediaTitle(QString mediaId) const {
 }
 
 
-// Private Helper
-void Navigator::filterData() {
-    m_filteredData.clear();
-    for (const auto& item : m_mediaData) {
-        if (item.contains("category") && item["category"].toString() == m_currentCategory) {
-            m_filteredData.append(item);
-        }
-    }
-}
+
 
 QSet<QString> Navigator::parseJson(const QString& json) {
     QSet<QString> parsed;
@@ -236,14 +259,14 @@ QString Navigator::getNextEpisode(QString currentMediaId, int index) {
 
 float Navigator::getMediaProgress(QString mediaId) {
 
-    QVariantMap meta = m_mediaMetadata[mediaId];
-
-    if (meta != NULL) {
-        float percentage = meta["percentageWatched"].toFloat();
+    if (m_mediaMetadata.contains(mediaId)) {
+        QVariantMap meta = m_mediaMetadata[mediaId];
+        float percentage = meta["percentage_watched"].toFloat();
         if (percentage) {
             return percentage;
         }
     }
+
     return 0.0;
 }
 
@@ -273,36 +296,97 @@ QString Navigator::getEraFromYear(int year) {
     return QString::number(decade) + "'s";
 }
 
+void Navigator::updateFilteredData() {
+    updateFilteredData(""); // Call the version with the default value
+}
+
+QSet<QString> Navigator::parseGenres(const QString& genresJson) {
+    QSet<QString> genres;
+    QJsonDocument doc = QJsonDocument::fromJson(genresJson.toUtf8());
+    if (doc.isArray()) {
+        QJsonArray array = doc.array();
+        for (const QJsonValue& value : array) {
+            if (value.isString()) {
+                genres.insert(value.toString());
+            }
+        }
+    }
+    return genres;
+}
+
 void Navigator::updateFilteredData(QString searchText) {
-    QList<QVariantMap> filteredResults;
+    QList<QVariantMap> filteredMedia;
+    QList<QVariantMap> filteredCollections;
     for (const auto& media : m_mediaData) {
-        if (media["collection_id"] == m_selectedCollectionId || m_selectedCollectionId == "") {
-            QString collection_type = getCollection(m_selectedCollectionId)["collection_type"].toString();
-            if (m_currentCategory == "series" and collection_type == "serie" or m_currentCategory == "movies" and collection_type == "movies") {
+
+        if (m_currentCategory == "continueWatching") {
+            if (getMediaProgress(media["ID"].toString()) > 0){
                 if (anyValueContains(media, searchText)) {
-                    filteredResults.append(media);
+                    filteredMedia.append(media);
                 }
             }
-            if (m_currentCategory == "continueWatching" and getMediaProgress(media["ID"].toString())) {
-                if (anyValueContains(media, searchText)) {
-                    filteredResults.append(media);
+        }
+        if (m_currentCategory == "movies" and media["type"].toString() == "movie") {
+            bool add = false;
+            if (m_selectedCollectionId == "") {
+                if (!m_groupByCollection or media["collection_id"] == "") {
+                    add = true;
                 }
+            }
+            else if (media["collection_id"] == m_selectedCollectionId) {
+                add = true;
+            }
+                      
+            if (add and anyValueContains(media, searchText)) {
+                filteredMedia.append(media);
             }
             
         }
+
+        if (m_currentCategory == "series" and m_selectedCollectionId != "") {
+            if (media["collection_id"] == m_selectedCollectionId) {
+                if (anyValueContains(media, searchText)) {
+                    filteredMedia.append(media);
+                }
+            }
+        }
+
+        
+
+            
+    }
+    if (m_selectedCollectionId == "" and m_currentCategory != "continueWatching" and (m_groupByCollection or m_currentCategory == "series")) {
+        for (const auto& collection : m_collectionsData) {
+        
+            QString type = collection["collection_type"].toString();
+            if (m_currentCategory == "series" and type == "serie" or m_currentCategory == "movies" and type == "movies") {
+                if (anyValueContains(collection, searchText)) {
+                    filteredCollections.append(collection);
+                }
+            }
+        }
     }
 
+    // Genres - collections
+    // Rate - collections and medias
+    // Producer - collections and medias
+    // Eras - medias
+
     QList<QString> filteredBarIDs;
-    for (const auto& media : filteredResults) {
+    for (const auto& media : filteredMedia) {
         filteredBarIDs.append(media["ID"].toString());
     }
 
-    for (const auto& media : filteredResults) {
+    for (const auto& media : filteredMedia) {
         bool remove = false;
         if (m_selectedGenres.size() > 0) {
             bool isGenre = false;
             for (const auto& genre : m_selectedGenres) {
-                isGenre = isGenre || genre == media["genre"];
+                QVariantMap collection_genres = getCollection(media["collection_id"].toString());
+                for (const auto& mediaGenre : parseGenres(collection_genres["genres"].toString())) {
+                    isGenre = isGenre || genre == mediaGenre;
+                }
+                
             }
             remove = remove || !isGenre;
         }
@@ -310,7 +394,7 @@ void Navigator::updateFilteredData(QString searchText) {
         if (m_selectedEras.size() > 0) {
             bool isEra = false;
             for (const auto& era : m_selectedEras) {
-                isEra = isEra || era == getEraFromYear(media["era"].toInt());
+                isEra = isEra || era == getEraFromYear(media["year"].toInt());
             }
             remove = remove || !isEra;
         }
@@ -321,16 +405,69 @@ void Navigator::updateFilteredData(QString searchText) {
             remove = remove || media["rating"].toInt() < 8;
         }
 
-        if (remove) {
+        if (!remove) {
             filteredBarIDs.removeAll(media["ID"].toString());
         }
     }
 
     for (const auto& mediaId : filteredBarIDs) {
-        filteredResults.removeAll(mediaId);
+        QVariantMap fm;
+        for (const auto& fmedia : filteredMedia) {
+            if (fmedia["ID"] == mediaId) {
+                fm = fmedia;
+            }
+            
+        }
+        filteredMedia.removeAll(fm);
+        
     }
 
-    m_filteredData = filteredResults;
+
+    if (m_currentCategory != "continueWatching" and (m_groupByCollection or m_currentCategory == "series")) {
+        for (const auto& collection : filteredCollections) {
+            for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
+                filteredMedia.removeAll(media);
+            }
+            filteredMedia.append(collection);
+        }
+    }
+
+
+
+
+
+
+    m_filteredData = filteredMedia;
     emit filteredDataChanged();
 }
 
+QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) {
+    QList<QVariantMap> result;
+    for (const auto& media : m_mediaData) {
+        if (media["collection_id"] == collectionId) {
+            result.append(media);
+        }
+    }
+    return result;
+}
+
+void Navigator::setMediaData(QList<QVariantMap> mediaData) {
+    m_mediaData = mediaData;
+    emit mediaDataChanged();
+    
+    
+}
+
+void Navigator::setCollectionsData(QList<QVariantMap> collectionsData) {
+    m_collectionsData = collectionsData;
+    emit collectionsDataChanged();
+}
+
+void Navigator::setMediaMetadata(QList<QVariantMap> mediaMetadata) {
+    for (const auto& media : mediaMetadata) {
+        m_mediaMetadata[media["mediaID"].toString()] = media;
+    }
+    emit mediaMetadataChanged();
+    emit mediaLoaded();
+    updateFilteredData();
+}

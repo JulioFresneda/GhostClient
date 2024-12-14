@@ -14,11 +14,45 @@ Item {
     
     
     property bool isPlayerVisible: false
-    
+    property var currentMediaId
 
     Navigator {
         id: navigator
         onFilteredDataChanged: console.log("Filtered data updated")
+    }
+
+    Connections {
+        target: filterBar
+        function onFiltersChanged() {
+            navigator.updateFilteredData()
+        }
+    }
+    Connections {
+        target: loginManager
+
+        function onMediaMetadataFetched(metadata) {
+            navigator.setMediaMetadata(metadata)
+            console.log("Loaded media metadata:", Object.keys(navigator.mediaMetadata).length);
+            
+        }
+
+        function onMediaDataFetched(fetchedData) {
+            console.log("Received media data:", JSON.stringify(fetchedData, null, 2))
+
+            if (fetchedData.collections) {
+                navigator.setCollectionsData(fetchedData.collections)
+            }
+
+            if (fetchedData.media) {
+                navigator.setMediaData(fetchedData.media)
+            }
+
+            
+
+            loginManager.fetchMediaMetadata()
+
+            
+        }
     }
 
 
@@ -81,22 +115,23 @@ Item {
                         height: 48
 
                         background: Rectangle {
-                            color: currentCategory === modelData.key ? 
+                            color: navigator.currentCategory === modelData.key ? 
                                   colors.primary : "black"
                             radius: 8
                         }
 
                         contentItem: Text {
                             text: modelData.value // Use the value from the map
-                            color: currentCategory === modelData.key ? 
+                            color: navigator.currentCategory === modelData.key ? 
                                   colors.textPrimary : colors.textSecondary
                             font.pointSize: 14
                             verticalAlignment: Text.AlignVCenter
                         }
 
                         onClicked: {
-                            currentCategory = modelData.key
-                            selectedCollectionId = ""
+                            navigator.currentCategory = modelData.key
+                            navigator.selectedCollectionId = ""
+                            
                             
                         }
                     }
@@ -108,7 +143,7 @@ Item {
                 ItemDelegate {
                     Layout.fillWidth: true
                     height: 0
-                    visible: selectedCollectionId !== ""
+                    visible: navigator.selectedCollectionId !== ""
 
                     background: Rectangle {
                         //
@@ -133,7 +168,7 @@ Item {
                     }
 
                     onClicked: {
-                        selectedCollectionId = ""
+                        navigator.selectedCollectionId = ""
                         
                     }
                 }
@@ -193,13 +228,13 @@ Item {
                         color: "white"  // White text color
                         anchors.verticalCenter: parent.verticalCenter 
                         font.pointSize: 14
-                        visible: currentCategory === "movies"
+                        visible: navigator.currentCategory === "movies"
                     }
                     CheckBox {
                         id: groupMoviesCheck
                         text: ""
                         
-                        visible: currentCategory === "movies"
+                        visible: navigator.currentCategory === "movies"
                         checked: true
                         
                         contentItem: Text {
@@ -226,7 +261,10 @@ Item {
                             }
                         }
 
-                        onCheckedChanged: navigator.updateFilteredData()
+                        onCheckedChanged: {
+                            navigator.updateFilteredData()
+                            navigator.groupByCollection = groupMoviesCheck.checked
+                        }
                     }
 
                     
@@ -241,7 +279,7 @@ Item {
                 Layout.preferredHeight: filterBarRowLayout.implicitHeight + (2 * padding)
                 color: colors.surface
                 radius: 8
-                visible: selectedCollectionId === "" ? true : false
+                visible: navigator.selectedCollectionId === "" ? true : false
                 z: 2
                 property int padding: 8
                 // Properties to store selected filters
@@ -270,6 +308,13 @@ Item {
                         id: genreFilter
                         Layout.preferredWidth: 150
                         model: navigator.getUniqueGenres()
+
+                        Connections {
+                            target: navigator
+                            onMediaLoaded: {
+                                genreFilter.model = navigator.getUniqueGenres();
+                            }
+                        }
                         textRole: "text"
                         displayText: navigator.selectedGenres.length > 0 ?
                                      navigator.selectedGenres.join(", ") : "Genre"
@@ -335,7 +380,7 @@ Item {
                                     }
                                 }
                                 console.log(filterBar.selectedGenres)
-                                navigator.filtersChanged()
+                                navigator.updateFilteredData()
                             }
                         }
                     }
@@ -409,8 +454,8 @@ Item {
                                         navigator.selectedEras.splice(index, 1)
                                     }
                                 }
-                                console.log(filterBar.selectedEras)
-                                navigator.filtersChanged()
+                                console.log(navigator.selectedEras)
+                                navigator.updateFilteredData()
                             }
                         }
 
@@ -431,7 +476,7 @@ Item {
                         implicitHeight: 40
                         onCheckedChanged: {
                             navigator.showTopRated = checked
-                            navigator.filtersChanged()
+                            navigator.updateFilteredData()
                         }
                     }
 
@@ -474,7 +519,7 @@ Item {
                            
                         onActivated: {
                             navigator.selectedProducer = currentText === "All" ? "" : currentText
-                            navigator.filtersChanged()
+                            navigator.updateFilteredData()
                         }
                     }
 
@@ -537,10 +582,10 @@ Item {
                     delegate: MediaCard {
                         width: 180
                         height: 280
-                        title: selectedCollectionId ? 
+                        title: navigator.selectedCollectionId ? 
                                (modelData.title || "") : // Title is currentCat is not series or movies
-                               (currentCategory === "series" || // If serie, or movies and grouped and coll title exists, colltitle
-                               (currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) ?
+                               (navigator.currentCategory === "series" || // If serie, or movies and grouped and coll title exists, colltitle
+                               (navigator.currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) ?
                                modelData.collection_title || "" :
                                modelData.title || ""
                         season: (modelData.season || "")
@@ -745,12 +790,12 @@ Item {
             hoverEnabled: true
             onClicked: {
                 console.log("MediaCard clicked:", mediaId, "Collection:", modelData.collection_title)
-                if (selectedCollectionId) {
+                if (navigator.selectedCollectionId) {
                     console.log("Loading media from collection:", modelData.ID)
                     currentMediaId = modelData.ID
                     isPlayerVisible = true
                 } else if (modelData.collection_title) {
-                    selectedCollectionId = modelData.ID
+                    navigator.selectedCollectionId = modelData.ID
                     selectedCollectionTitle = modelData.collection_title
                     navigator.updateFilteredData()
                 } else {
@@ -859,50 +904,7 @@ Item {
 
     
 
-    Connections {
-        target: filterBar
-        function onFiltersChanged() {
-            navigator.updateFilteredData()
-        }
-    }
-    Connections {
-        target: loginManager
-
-        function onMediaMetadataFetched(metadata) {
-            let metadataMap = {};
-            const metadataArray = metadata || [];
-        
-            for (let i = 0; i < metadataArray.length; i++) {
-                const meta = metadataArray[i];
-                metadataMap[meta.mediaID] = meta;
-            }
-        
-            navigator.mediaMetadata = metadataMap;
-            console.log("Loaded media metadata:", Object.keys(navigator.mediaMetadata).length);
-            // Initial filtering
-            navigator.updateFilteredData()
-        }
-
-        function onMediaDataFetched(fetchedData) {
-            console.log("Received media data:", JSON.stringify(fetchedData, null, 2))
-
-            if (fetchedData.collections) {
-                navigator.collectionsData = fetchedData.collections
-                console.log("Loaded collections:", navigator.collectionsData.length)
-            }
-
-            if (fetchedData.media) {
-                navigator.mediaData = fetchedData.media
-                console.log("Total media items loaded:", navigator.mediaData.length)
-            }
-
-            
-
-            loginManager.fetchMediaMetadata()
-
-            
-        }
-    }
+    
 
     
 }
