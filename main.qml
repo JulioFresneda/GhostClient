@@ -336,7 +336,7 @@ ApplicationWindow {
             loginManager.fetchUserProfile()
         }
         function onProfileSelected() {
-            appLoader.source = "qrc:/qt/qml/ghostclient/nav.qml"
+            appLoader.source = "qrc:/qt/qml/ghostclient/Navigator.qml"
             appLoader.visible = true
             loginManager.fetchMediaData()
         }

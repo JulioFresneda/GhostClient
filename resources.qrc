@@ -9,9 +9,7 @@
         <file>media/sidebar.png</file>
         <file>media/bg.png</file>
         <file>media/loading.png</file>
-        <file>media/buttons/beginning-svgrepo-com.svg</file>
         <file>media/buttons/caret-square-right-svgrepo-com.svg</file>
-        <file>media/buttons/end-svgrepo-com.svg</file>
         <file>media/buttons/sound-low-svgrepo-com.svg</file>
         <file>media/buttons/sound-svgrepo-com.svg</file>
         <file>media/buttons/sound-unavailable-svgrepo-com.svg</file>
@@ -31,5 +29,9 @@
         <file>media/buttons/forward_hover.svg</file>
         <file>media/buttons/audio.svg</file>
         <file>media/buttons/subtitles.svg</file>
+        <file>media/buttons/lastone.svg</file>
+        <file>media/buttons/lastone_hover.svg</file>
+        <file>media/buttons/next.svg</file>
+        <file>media/buttons/next_hover.svg</file>
     </qresource>
 </RCC>

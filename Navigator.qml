@@ -11,26 +11,16 @@ Item {
     width: 1920
     height: 1080
 
-    // Properties for data management
-    property var collectionsData: []
-    property var mediaData: []
-    property var mediaMetadata: []
-    property var filteredData: []
-    property string currentCategory: "continueWatching"
-    property string selectedCollectionId: ""
-    property string selectedCollectionTitle: ""
+    
+    
     property bool isPlayerVisible: false
-    property string currentMediaId: ""
+    
 
-    MediaFilterHandler {
-        id: filterHandler
+    Navigator {
+        id: navigator
+        onFilteredDataChanged: console.log("Filtered data updated")
     }
 
-    property var categories: {
-        "continueWatching": "Continuar viendo",
-        "series" : "Series",
-        "movies" : "Pelis"
-    }
 
     // Color scheme
     QtObject {
@@ -85,34 +75,33 @@ Item {
 
                 // Categories
                 Repeater {
-                    model: Object.keys(categories)
+                    model: navigator.sidebarCategories() // Call the C++ method
                     delegate: ItemDelegate {
                         Layout.fillWidth: true
                         height: 48
 
                         background: Rectangle {
-                            color: currentCategory === modelData ? 
+                            color: currentCategory === modelData.key ? 
                                   colors.primary : "black"
                             radius: 8
                         }
 
                         contentItem: Text {
-                            text: categories[modelData]
-                            color: currentCategory === modelData ? 
+                            text: modelData.value // Use the value from the map
+                            color: currentCategory === modelData.key ? 
                                   colors.textPrimary : colors.textSecondary
                             font.pointSize: 14
                             verticalAlignment: Text.AlignVCenter
                         }
 
                         onClicked: {
-                            currentCategory = modelData
+                            currentCategory = modelData.key
                             selectedCollectionId = ""
-                            selectedCollectionTitle = ""
-                        
-                            filterContent()
+                            
                         }
                     }
                 }
+
 
                 
 
@@ -145,8 +134,7 @@ Item {
 
                     onClicked: {
                         selectedCollectionId = ""
-                        selectedCollectionTitle = ""
-                        filterContent()
+                        
                     }
                 }
                 Item { Layout.fillHeight: true } // Spacer
@@ -195,7 +183,7 @@ Item {
                             radius: 4
                         }
 
-                        onTextChanged: filterContent()
+                        onTextChanged: navigator.updateFilteredData()
                     }
 
                     Item { Layout.fillWidth: true }
@@ -238,7 +226,7 @@ Item {
                             }
                         }
 
-                        onCheckedChanged: filterContent()
+                        onCheckedChanged: navigator.updateFilteredData()
                     }
 
                     
@@ -257,11 +245,7 @@ Item {
                 z: 2
                 property int padding: 8
                 // Properties to store selected filters
-                property var selectedGenres: []
-                property var selectedEras: []
-                property bool showTopRated: false
-                property string selectedDirector: ""
-                property string selectedProducer: ""
+
 
                 // Signals for filter changes
                 signal filtersChanged()
@@ -285,10 +269,10 @@ Item {
                     ComboBox {
                         id: genreFilter
                         Layout.preferredWidth: 150
-                        model: filterHandler.getUniqueGenres(collectionsData, mediaData)
+                        model: navigator.getUniqueGenres()
                         textRole: "text"
-                        displayText: filterBar.selectedGenres.length > 0 ?
-                                     filterBar.selectedGenres.join(", ") : "Genre"
+                        displayText: navigator.selectedGenres.length > 0 ?
+                                     navigator.selectedGenres.join(", ") : "Genre"
 
                         background: Rectangle {
                             color: colors.background
@@ -323,7 +307,7 @@ Item {
                         delegate: CheckDelegate {
                             width: parent.width
                             text: modelData.text
-                            checked: filterBar.selectedGenres.includes(modelData.text)
+                            checked: navigator.selectedGenres.includes(modelData.text)
                             background: Rectangle {
                                 anchors.fill: parent
                                 color: checked ? colors.background : colors.background // Background color for checked/unchecked items
@@ -341,17 +325,17 @@ Item {
                             
                             onCheckedChanged: {
                                 if (checked) {
-                                    if (!filterBar.selectedGenres.includes(modelData.text)) {
-                                        filterBar.selectedGenres.push(modelData.text)
+                                    if (!navigator.selectedGenres.includes(modelData.text)) {
+                                        navigator.selectedGenres.push(modelData.text)
                                     }
                                 } else {
-                                    const index = filterBar.selectedGenres.indexOf(modelData.text)
+                                    const index = navigator.selectedGenres.indexOf(modelData.text)
                                     if (index > -1) {
-                                        filterBar.selectedGenres.splice(index, 1)
+                                        navigator.selectedGenres.splice(index, 1)
                                     }
                                 }
                                 console.log(filterBar.selectedGenres)
-                                filterBar.filtersChanged()
+                                navigator.filtersChanged()
                             }
                         }
                     }
@@ -362,8 +346,8 @@ Item {
                         id: eraFilter
                         Layout.preferredWidth: 120
                         model: ["60's", "70's", "80's", "90's", "2000's", "2010's", "2020's"]
-                        displayText: filterBar.selectedEras.length > 0 ?
-                                     filterBar.selectedEras.join(", ") : "Era"
+                        displayText: navigator.selectedEras.length > 0 ?
+                                     navigator.selectedEras.join(", ") : "Era"
 
                         background: Rectangle {
                             color: colors.background
@@ -398,7 +382,7 @@ Item {
                         delegate: CheckDelegate {
                             width: parent.width
                             text: modelData
-                            checked: filterBar.selectedEras.includes(modelData)
+                            checked: navigator.selectedEras.includes(modelData)
                             background: Rectangle {
                                 anchors.fill: parent
                                 color: checked ? colors.background : colors.background // Background color for checked/unchecked items
@@ -416,17 +400,17 @@ Item {
 
                             onCheckedChanged: {
                                 if (checked) {
-                                    if (!filterBar.selectedEras.includes(modelData)) {
-                                        filterBar.selectedEras.push(modelData)
+                                    if (!navigator.selectedEras.includes(modelData)) {
+                                        navigator.selectedEras.push(modelData)
                                     }
                                 } else {
-                                    const index = filterBar.selectedEras.indexOf(modelData)
+                                    const index = navigator.selectedEras.indexOf(modelData)
                                     if (index > -1) {
-                                        filterBar.selectedEras.splice(index, 1)
+                                        navigator.selectedEras.splice(index, 1)
                                     }
                                 }
                                 console.log(filterBar.selectedEras)
-                                filterBar.filtersChanged()
+                                navigator.filtersChanged()
                             }
                         }
 
@@ -438,7 +422,7 @@ Item {
                     Switch {
                         id: topRatedSwitch
                         text: "<font color=\"white\">Top Rated (8+ IMBD)</font>"
-                        checked: filterBar.showTopRated
+                        checked: navigator.showTopRated
                         background: Rectangle {
                             color: colors.background
                             radius: 4
@@ -446,8 +430,8 @@ Item {
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
                         onCheckedChanged: {
-                            filterBar.showTopRated = checked
-                            filterBar.filtersChanged()
+                            navigator.showTopRated = checked
+                            navigator.filtersChanged()
                         }
                     }
 
@@ -461,7 +445,7 @@ Item {
                         }
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
-                        model: filterHandler.getUniqueProducers(collectionsData, mediaData)
+                        model: navigator.getUniqueProducers()
                         displayText: currentText || "Producer"
                         contentItem: Item {
                             implicitWidth: producerText.implicitWidth
@@ -489,8 +473,8 @@ Item {
 
                            
                         onActivated: {
-                            filterBar.selectedProducer = currentText === "All" ? "" : currentText
-                            filterBar.filtersChanged()
+                            navigator.selectedProducer = currentText === "All" ? "" : currentText
+                            navigator.filtersChanged()
                         }
                     }
 
@@ -500,11 +484,11 @@ Item {
                         flat: true
                         visible: true
                         onClicked: {
-                            filterBar.selectedGenres = []
-                            filterBar.selectedEras = []
-                            filterBar.showTopRated = false
-                            filterBar.selectedDirector = "All"
-                            filterBar.selectedProducer = "All"
+                            navigator.selectedGenres = []
+                            navigator.selectedEras = []
+                            navigator.showTopRated = false
+                            navigator.selectedDirector = "All"
+                            navigator.selectedProducer = "All"
                         }
 
                         contentItem: Text {
@@ -548,14 +532,14 @@ Item {
                     anchors.fill: parent
                     cellWidth: 200
                     cellHeight: 300
-                    model: filteredData
+                    model: navigator.filteredData
 
                     delegate: MediaCard {
                         width: 180
                         height: 280
                         title: selectedCollectionId ? 
-                               (modelData.title || "") :
-                               (currentCategory === "series" || 
+                               (modelData.title || "") : // Title is currentCat is not series or movies
+                               (currentCategory === "series" || // If serie, or movies and grouped and coll title exists, colltitle
                                (currentCategory === "movies" && groupMoviesCheck.checked && modelData.collection_title)) ?
                                modelData.collection_title || "" :
                                modelData.title || ""
@@ -583,61 +567,34 @@ Item {
             anchors.fill: parent
             active: isPlayerVisible
             onLoaded: {
-                // Connect the child's signal to a function in the parent
-                playerLoader.item.nextEpisode.connect(playerContainer.onNextEpisode)
+                
             }
             sourceComponent: Component {
                 MediaPlayer {
                     mediaId: currentMediaId
-                    title: selectedCollectionTitle
-                    mediaMetadata: root.mediaMetadata[currentMediaId]
+                    title: navigator.getMediaTitle(currentMediaId)
+                    mediaMetadata: navigator.mediaMetadata[currentMediaId]
                     
                     onCloseRequested: {
                         isPlayerVisible = false
                         currentMediaId = ""
                     }
                     onMediaEnded: {
-                        if (selectedCollectionId) {
-                            // Find current media in filtered data
-                            let currentIndex = filteredData.findIndex(media => media.ID === currentMediaId)
-                            if (currentIndex >= 0 && currentIndex < filteredData.length - 1) {
-                                // Play next episode
-                                currentMediaId = filteredData[currentIndex + 1].ID
-                                mediaId = currentMediaId
-                                mediaMetadata = root.mediaMetadata[currentMediaId]
-                            }
-                        }
+                        mediaId = navigator.getNextEpisode(1)
+                        mediaMetadata = navigator.mediaMetadata[mediaId]
+                    }
+                    onNextEpisode: {
+                        mediaId = navigator.getNextEpisode(1)
+                        mediaMetadata = navigator.mediaMetadata[mediaId]
+                    }
+                    onLastEpisode: {
+                        mediaId = navigator.getNextEpisode(-1)
+                        mediaMetadata = navigator.mediaMetadata[mediaId]
                     }
                     
                 }
             }
-        }
-        function onNextEpisode(){
-            if (selectedCollectionId) {
-                // Find current media in filtered data
-                let currentIndex = filteredData.findIndex(media => media.ID === currentMediaId)
-                if (currentIndex >= 0 && currentIndex < filteredData.length - 1) {
-                    // Play next episode
-                    currentMediaId = filteredData[currentIndex + 1].ID
-                    mediaId = currentMediaId
-                    mediaMetadata = root.mediaMetadata[currentMediaId]
-                }
-            }
-        }
-        function onLastEpisode(){
-            if (selectedCollectionId) {
-                // Find current media in filtered data
-                let currentIndex = filteredData.findIndex(media => media.ID === currentMediaId)
-                if (currentIndex >= 1 && currentIndex < filteredData.length) {
-                    // Play next episode
-                    currentMediaId = filteredData[currentIndex - 1].ID
-                    mediaId = currentMediaId
-                    mediaMetadata = root.mediaMetadata[currentMediaId]
-                }
-            }
-        }
-
-        
+        }                  
     }
 
     // Components for grid and list items
@@ -707,7 +664,7 @@ Item {
                     }
                     height: 6
                     color: colors.background
-                    visible: getMediaProgress(card.mediaId) > 0
+                    visible: navigator.getMediaProgress(card.mediaId) > 0
     
                     Rectangle {
                         id: progressFill
@@ -716,7 +673,7 @@ Item {
                             top: parent.top
                             bottom: parent.bottom
                         }
-                        width: parent.width * getMediaProgress(card.mediaId)
+                        width: parent.width * navigator.getMediaProgress(card.mediaId)
                         gradient: Gradient {
                                     orientation: Gradient.Horizontal
                                     GradientStop { position: 1.0; color: colors.superGreen }
@@ -795,7 +752,7 @@ Item {
                 } else if (modelData.collection_title) {
                     selectedCollectionId = modelData.ID
                     selectedCollectionTitle = modelData.collection_title
-                    filterContent()
+                    navigator.updateFilteredData()
                 } else {
                     console.log("Loading standalone media:", modelData.ID)
                     currentMediaId = modelData.ID
@@ -891,112 +848,8 @@ Item {
         return minutes.toString().padStart(2, '0') + ':' + 
                seconds.toString().padStart(2, '0')
     }
-
-    function filterContent() {
-        let searchText = searchField.text.toLowerCase()
-        let filteredResults = []
-        if (selectedCollectionId !== "") {
-            let selectedCollection = collectionsData.find(c => c.ID === selectedCollectionId)
-            if (selectedCollection) {
-                filteredData = mediaData.filter(media => {
-                    let matchesCollection = media.collection_id === selectedCollectionId
-                    let matchesSearch = media.title.toLowerCase().includes(searchText)
-                    return matchesCollection && matchesSearch
-                })
-
-                filteredData.sort((a, b) => {
-                    if (a.season !== b.season) {
-                        return (a.season || 0) - (b.season || 0)
-                    }
-                    return (a.episode || 0) - (b.episode || 0)
-                })
-            }
-            return
-        }
+//searchField.text.toLowerCase()
     
-        console.log("Filtering with:", {
-            mediaDataLength: mediaData.length,
-            collectionsDataLength: collectionsData.length,
-            searchText: searchText,
-            currentCategory: currentCategory,
-            groupMovies: groupMoviesCheck.checked
-        })
-        if (currentCategory === "continueWatching") {
-            // Filter media items that are in progress
-            filteredData = mediaData.filter(media => {
-                let matchesSearch = (media.title || "").toLowerCase().includes(searchText);
-                let progress = getMediaProgress(media.ID);
-        
-                // Show items with progress between 0% and 99%
-                return matchesSearch && progress > 0 && progress < 0.99;
-            });
-    
-            // Sort by progress (most recently watched first)
-            filteredData.sort((a, b) => {
-                // Get progress for both items
-                let progressA = getMediaProgress(a.ID);
-                let progressB = getMediaProgress(b.ID);
-        
-                // Sort in descending order (higher progress first)
-                return progressB - progressA;
-            });
-        }
-        else if (currentCategory === "series") {
-            filteredData = collectionsData.filter(collection => {
-                let matchesSearch = collection.collection_title.toLowerCase().includes(searchText)
-                let isSeries = collection.collection_type === "serie"
-                return matchesSearch && isSeries
-            })
-        } 
-        else if (currentCategory === "movies" && groupMoviesCheck.checked) {
-            let movieCollections = collectionsData.filter(collection => {
-                let matchesSearch = collection.collection_title.toLowerCase().includes(searchText)
-                let isMovies = collection.collection_type === "movies"
-                return matchesSearch && isMovies
-            })
-
-            let standaloneMovies = mediaData.filter(media => {
-                let matchesSearch = (media.title || "").toLowerCase().includes(searchText)
-                return !media.collection_id && media.type === "movie" && matchesSearch
-            })
-
-            filteredData = [...movieCollections, ...standaloneMovies]
-        }
-        else {
-            filteredData = mediaData.filter(media => {
-                let title = media.title || ""
-                let matchesSearch = title.toLowerCase().includes(searchText)
-
-                let matchesCategory = true
-                if (currentCategory === "movies") {
-                    matchesCategory = media.type === "movie"
-                }
-
-                return matchesSearch && matchesCategory
-            })
-        }
-
-        filteredResults = filteredData
-        if (filterBar.selectedGenres.length > 0) {
-            console.log(filterBar.selectedGenres)
-            filteredResults = filterHandler.filterByGenre(filteredResults, filterBar.selectedGenres)
-        }
-
-        if (filterBar.showTopRated) {
-            filteredResults = filterHandler.filterByRating(filteredResults, 8.0)
-        }
-
-        if (filterBar.selectedEras.length > 0) {
-            filteredResults = filterHandler.filterByEra(filteredResults, filterBar.selectedEras)
-        }
-
-        if (filterBar.selectedProducer && filterBar.selectedProducer !== "All") {
-            filteredResults = filterHandler.filterByProducer(filteredResults, filterBar.selectedProducer)
-        }
-        filteredData = filteredResults
-
-        console.log("Filtered results:", filteredData.length, "items")
-    }
 
     function showMediaDetails(mediaItem) {
         console.log("Selected media:", JSON.stringify(mediaItem, null, 2))
@@ -1009,7 +862,7 @@ Item {
     Connections {
         target: filterBar
         function onFiltersChanged() {
-            filterContent()
+            navigator.updateFilteredData()
         }
     }
     Connections {
@@ -1024,23 +877,23 @@ Item {
                 metadataMap[meta.mediaID] = meta;
             }
         
-            root.mediaMetadata = metadataMap;
-            console.log("Loaded media metadata:", Object.keys(root.mediaMetadata).length);
+            navigator.mediaMetadata = metadataMap;
+            console.log("Loaded media metadata:", Object.keys(navigator.mediaMetadata).length);
             // Initial filtering
-            filterContent()
+            navigator.updateFilteredData()
         }
 
         function onMediaDataFetched(fetchedData) {
             console.log("Received media data:", JSON.stringify(fetchedData, null, 2))
 
             if (fetchedData.collections) {
-                root.collectionsData = fetchedData.collections
-                console.log("Loaded collections:", root.collectionsData.length)
+                navigator.collectionsData = fetchedData.collections
+                console.log("Loaded collections:", navigator.collectionsData.length)
             }
 
             if (fetchedData.media) {
-                root.mediaData = fetchedData.media
-                console.log("Total media items loaded:", root.mediaData.length)
+                navigator.mediaData = fetchedData.media
+                console.log("Total media items loaded:", navigator.mediaData.length)
             }
 
             
@@ -1051,14 +904,5 @@ Item {
         }
     }
 
-    function getMediaProgress(mediaId) {
-        if (!mediaMetadata || !mediaId) return 0;
     
-        const meta = mediaMetadata[mediaId];
-        if (meta && meta.percentage_watched) {
-            const percentage = parseFloat(meta.percentage_watched);
-            return isNaN(percentage) ? 0 : percentage;
-        }
-        return 0;
-    }
 }

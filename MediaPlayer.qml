@@ -17,8 +17,8 @@ Rectangle {
     property int loadingPosCounter: 0
     signal closeRequested
     signal mediaEnded
-    signal nextEpisode()
-    signal lastEpisode() 
+    signal nextEpisode
+    signal lastEpisode
 
     function loadingPosFun(){
         if (isLoading && loadingPos < mediaPlayer.position){
@@ -270,6 +270,30 @@ Rectangle {
                     }
                     Item { Layout.preferredWidth: 800 }
                     Button {
+                        onClicked: {
+                            root.lastEpisode()
+                            if (root.mediaMetadata !== undefined) {
+                                mediaPlayer.loadMedia(root.mediaId, root.mediaMetadata)
+                            } else {
+                                mediaPlayer.loadMedia(root.mediaId, {})
+                            }
+                        }
+                        flat: true
+                        Layout.preferredWidth: 16
+                        Layout.preferredHeight: 16
+                        contentItem: VectorImage {
+                            //height: 6
+                            //width: 6
+                            source: parent.hovered ? "qrc:/media/buttons/lastone_hover.svg" : "qrc:/media/buttons/lastone.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                            preferredRendererType: VectorImage.CurveRenderer
+                            
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+                    }
+                    Button {
                         onClicked: mediaPlayer.back30sec();
                         flat: true
                         Layout.preferredWidth: 24
@@ -328,17 +352,20 @@ Rectangle {
                     
                     Button {
                         onClicked: {
-                            mediaPlayer.stop()
                             root.nextEpisode()
-                            mediaPlayer.play()
+                            if (root.mediaMetadata !== undefined) {
+                                mediaPlayer.loadMedia(root.mediaId, root.mediaMetadata)
+                            } else {
+                                mediaPlayer.loadMedia(root.mediaId, {})
+                            }
                         }
                         flat: true
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 16
+                        Layout.preferredHeight: 16
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
+                            source: parent.hovered ? "qrc:/media/buttons/next_hover.svg" : "qrc:/media/buttons/next.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
