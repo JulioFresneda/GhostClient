@@ -68,6 +68,8 @@ Item {
         property string strongWhite: "#e2e2e2"
         property string green: "#419A38"
         property string superGreen: "#66f557"
+        property string midnightBlue: "#191970"
+        property string periwinkle: "#CCCCFF"
     }
 
     // Background
@@ -719,11 +721,20 @@ Item {
                         }
                         width: parent.width * navigator.getMediaProgress(card.mediaId)
                         gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-                                    GradientStop { position: 1.0; color: colors.superGreen }
-                                    GradientStop { position: 0.8; color: colors.green }
-                                    GradientStop { position: 0.0; color: colors.green }
-                                }
+                            orientation: Gradient.Horizontal
+                            GradientStop {
+                                position: 1.0
+                                color: navigator.getMediaProgress(card.mediaId) > 0.99 ? colors.midnightBlue : colors.superGreen
+                            }
+                            GradientStop {
+                                position: navigator.getMediaProgress(card.mediaId) > 0.99 ? 0.5 : 0.8
+                                color: navigator.getMediaProgress(card.mediaId) > 0.99 ? colors.periwinkle : colors.green
+                            }
+                            GradientStop {
+                                position: 0.0
+                                color: navigator.getMediaProgress(card.mediaId) > 0.99 ? colors.midnightBlue : colors.green
+                            }
+                        }
                     }
                 }
                 

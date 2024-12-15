@@ -524,7 +524,7 @@ void Navigator::filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVaria
     for (const auto& media : m_mediaData) {
 
         if (m_currentCategory == "continueWatching") {
-            if (getMediaProgress(media["ID"].toString()) > 0) {
+            if (getMediaProgress(media["ID"].toString()) > 0 and getMediaProgress(media["ID"].toString()) <= 0.99) {
                 filteredMedia.append(media);
             }
         }

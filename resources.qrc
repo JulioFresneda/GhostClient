@@ -10,9 +10,6 @@
         <file>media/bg.png</file>
         <file>media/loading.png</file>
         <file>media/buttons/caret-square-right-svgrepo-com.svg</file>
-        <file>media/buttons/sound-low-svgrepo-com.svg</file>
-        <file>media/buttons/sound-svgrepo-com.svg</file>
-        <file>media/buttons/sound-unavailable-svgrepo-com.svg</file>
         <file>media/buttons/zoom-out-fixed-svgrepo-com.svg</file>
         <file>media/buttons/music-note-svgrepo-com.svg</file>
         <file>media/buttons/pause.svg</file>
@@ -33,5 +30,8 @@
         <file>media/buttons/lastone_hover.svg</file>
         <file>media/buttons/next.svg</file>
         <file>media/buttons/next_hover.svg</file>
+        <file>media/buttons/sound_0.svg</file>
+        <file>media/buttons/sound_1.svg</file>
+        <file>media/buttons/sound_2.svg</file>
     </qresource>
 </RCC>

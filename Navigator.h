@@ -6,6 +6,7 @@
 #include <QVariant>
 
 
+
 class Navigator : public QObject {
     Q_OBJECT
 

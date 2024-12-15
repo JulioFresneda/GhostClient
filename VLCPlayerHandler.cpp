@@ -212,6 +212,7 @@ void VLCPlayerHandler::updateMediaInfo() {
         }
     }
     else if (state == libvlc_Ended) {
+        updateMediaMetadataOnServer();
         emit mediaEnded();
     }
 }
@@ -230,7 +231,12 @@ void VLCPlayerHandler::updateMediaMetadataOnServer() {
     jsonPayload["token"] = m_token;
     jsonPayload["profileID"] = m_profileId;
     jsonPayload["mediaID"] = m_currentMediaId;
-    float position = libvlc_media_player_get_position(m_mediaPlayer);
+    libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
+    float position = 1.0;
+    if (state != libvlc_Ended) {
+        position = libvlc_media_player_get_position(m_mediaPlayer);
+    }
+    
     jsonPayload["percentageWatched"] = QString::number(position, 'f', 3);
     jsonPayload["languageChosen"] = "en";  // Default language
     jsonPayload["subtitlesChosen"] = m_currentSubtitlesCode;  // Default subtitles
@@ -277,7 +283,9 @@ bool VLCPlayerHandler::isPlaying() const {
     return m_isPlaying;
 }
 
-
+void VLCPlayerHandler::setVolume(int volume) {
+    libvlc_audio_set_volume(m_mediaPlayer, volume);
+}
 
 QVideoSink* VLCPlayerHandler::videoSink() const {
     return m_videoSink;

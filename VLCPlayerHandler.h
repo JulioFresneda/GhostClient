@@ -41,6 +41,8 @@ public:
 
     bool eventFilter(QObject* obj, QEvent* event) override;
 
+    Q_INVOKABLE void setVolume(int volume);
+
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
     void setPosition(qint64 position);

@@ -374,6 +374,7 @@ Rectangle {
                             color: "transparent"
                         }
                     }
+                    Item { Layout.preferredWidth: 24 }
                     Button {
                         onClicked: mediaPlayer.setFullScreen(true)
                         flat: true
@@ -389,6 +390,90 @@ Rectangle {
                         }
                         background: Rectangle {
                             color: "transparent"
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignRight
+                        Button {
+                            //onClicked: 
+                            flat: true
+                            Layout.preferredWidth: 24
+                            Layout.preferredHeight: 24
+                            contentItem: VectorImage {
+                                //height: 6
+                                //width: 6
+                                source: volumeSlider.value == 0 ? "qrc:/media/buttons/sound_0.svg" : (volumeSlider.value < 51 ? "qrc:/media/buttons/sound_1.svg" : "qrc:/media/buttons/sound_2.svg")                          
+                                anchors.fill: parent // Make the VectorImage fill the Button
+                                preferredRendererType: VectorImage.CurveRenderer
+                            
+                            }
+                            background: Rectangle {
+                                color: "transparent"
+                            }
+                        }
+                        Rectangle {
+                            //Layout.fillWidth: true
+                            Layout.preferredHeight: 24
+                            Layout.preferredWidth: 150
+                            color: "transparent"
+                            Slider {
+                                id: volumeSlider
+                                anchors.centerIn: parent
+                                width: 150
+                                from: 0
+                                to: 100
+                                value: 50
+                                stepSize: 1
+                                onValueChanged: {
+                                    console.log("Volume: " + value)
+                                    mediaPlayer.setVolume(value)
+                                }
+
+                                Label {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    anchors.top: volumeSlider.bottom
+                                    text: "Volume: " + Math.round(volumeSlider.value) + "%"
+                                    font.pixelSize: 14
+                                }
+
+                            
+
+        
+                                handle: Rectangle {
+                                    x: volumeSlider.leftPadding + (volumeSlider.horizontal ? volumeSlider.visualPosition * (volumeSlider.availableWidth - width) : (volumeSlider.availableWidth - width) / 2)
+                                    y: volumeSlider.topPadding + (volumeSlider.vertical ? volumeSlider.visualPosition * (volumeSlider.availableHeight - height) : (volumeSlider.availableHeight - height) / 2)
+
+                                    implicitWidth: 15
+                                    implicitHeight: 15
+
+                                    radius: width/2
+
+                                    border.width: volumeSlider.pressed ? width/2 : 1
+                                    border.color: volumeSlider.background.color
+                                    color: colors.surface
+                                    Behavior on border.width { SmoothedAnimation {} }
+
+                                    
+                                }
+
+                                background: Rectangle {
+                                    id: bgcolor
+                                    x: (volumeSlider.width  - width) / 2
+                                    y: (volumeSlider.height - height) / 2
+
+                                    implicitWidth: volumeSlider.horizontal ? 200 : 1
+                                    implicitHeight: volumeSlider.horizontal ? 1 : 200
+
+                                    width: volumeSlider.horizontal ? volumeSlider.availableWidth : implicitWidth
+                                    height: volumeSlider.horizontal ? implicitHeight : volumeSlider.availableHeight
+
+                                    radius: width
+
+                                
+                                }
+                            }
                         }
                     }
                     
