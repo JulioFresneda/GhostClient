@@ -22,13 +22,34 @@ Rectangle {
             opacity: 0
             fillMode: Image.PreserveAspectFit
 
-            RotationAnimation on rotation {
-                id: rotationAnim
-                from: 0
-                to: 360
-                duration: 2000
-                loops: 1
+            Timer {
+                property int counter: 2
+                property bool done: false
+                id: sourceSwitcher
+                interval: 50 // 0.2 seconds
+                repeat: true
                 running: false
+                //duration: 2000
+                onTriggered: {
+                    if (counter > 0){
+                        done = false
+                        if (logo.source == "qrc:/media/logo_violet.png"){
+                            logo.source = "qrc:/media/logo.png"
+                            done = true
+                            counter -= 1
+                        
+                        }
+                        if (logo.source == "qrc:/media/logo_green.png"){
+                            logo.source = "qrc:/media/logo_violet.png"
+                        }
+                        if (logo.source == "qrc:/media/logo.png" && !done){
+                            logo.source = "qrc:/media/logo_green.png"
+                        }
+                        
+                    }
+                    
+                   
+                }
             }
 
             NumberAnimation on opacity {
@@ -38,7 +59,7 @@ Rectangle {
                 duration: 4000
                 easing.type: Easing.OutQuad
                 onFinished: {
-                    rotationAnim.start()
+                    sourceSwitcher.start()
                     ghostFadeIn.start()
                     streamFadeIn.start()
                 }
@@ -47,7 +68,7 @@ Rectangle {
 
         Text {
             id: ghostText
-            text: "Ghost"
+            text: "Ghost "
             color: "#FFFFFF"
             font { pointSize: 72; weight: Font.Light }
             anchors {
@@ -94,7 +115,7 @@ Rectangle {
                 duration: 4000
                 easing.type: Easing.OutQuad
                 onFinished: {
-                    rotationAnim.stop()
+                    sourceSwitcher.stop()
                     finalTimer.start()
                 }
                 

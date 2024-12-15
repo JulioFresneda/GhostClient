@@ -222,17 +222,24 @@ Rectangle {
                             id: progressMouseArea
                             anchors.fill: parent
                             hoverEnabled: true
-
+                            property bool moved: false
                             onPressed: {
+                                
                                 let newPosition = (mouseX / width) * mediaPlayer.duration
                                 mediaPlayer.setPosition(Math.max(0, Math.min(newPosition, mediaPlayer.duration)))
+                                
                             }
 
                             onMouseXChanged: {
                                 if (pressed) {
                                     let newPosition = (mouseX / width) * mediaPlayer.duration
-                                    mediaPlayer.setPosition(Math.max(0, Math.min(newPosition, mediaPlayer.duration)))
+                                    moved: true
                                 }
+                                if (!pressed && moved){
+                                    mediaPlayer.setPosition(Math.max(0, Math.min(newPosition, mediaPlayer.duration)))
+                                    moved: false
+                                }            
+                
                             }
                         }
                     }

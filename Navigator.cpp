@@ -335,6 +335,9 @@ void Navigator::filterByChosenCollection(QList<QVariantMap>& filteredMedia, QLis
     }
 }
 
+QVariantMap Navigator::getMediaMetadata(QString mediaId) {
+    return m_mediaMetadata[mediaId];
+}
 
 void Navigator::updateFilteredData(QString searchText) {
     QList<QVariantMap> filteredMedia;

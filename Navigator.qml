@@ -32,7 +32,7 @@ Item {
 
         function onMediaMetadataFetched(metadata) {
             navigator.setMediaMetadata(metadata)
-            console.log("Loaded media metadata:", Object.keys(navigator.mediaMetadata).length);
+            console.log("Loaded media metadata:", navigator.mediaMetadata);
             
         }
 
@@ -613,13 +613,13 @@ Item {
             anchors.fill: parent
             active: isPlayerVisible
             onLoaded: {
-                
+                console.log(navigator.mediaMetadata[currentMediaId])
             }
             sourceComponent: Component {
                 MediaPlayer {
                     mediaId: currentMediaId
                     title: navigator.getMediaTitle(currentMediaId)
-                    mediaMetadata: navigator.mediaMetadata[currentMediaId]
+                    mediaMetadata: navigator.getMediaMetadata(mediaId)
                     
                     onCloseRequested: {
                         isPlayerVisible = false
@@ -627,15 +627,15 @@ Item {
                     }
                     onMediaEnded: {
                         mediaId = navigator.getNextEpisode(1)
-                        mediaMetadata = navigator.mediaMetadata[mediaId]
+                        mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     onNextEpisode: {
                         mediaId = navigator.getNextEpisode(1)
-                        mediaMetadata = navigator.mediaMetadata[mediaId]
+                        mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     onLastEpisode: {
                         mediaId = navigator.getNextEpisode(-1)
-                        mediaMetadata = navigator.mediaMetadata[mediaId]
+                        mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     
                 }
