@@ -47,7 +47,7 @@
     <Import Project="$(QtMsBuild)\qt_defaults.props" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
-    <QtInstall>6.8.0_msvc2022_64</QtInstall>
+    <QtInstall>Qt</QtInstall>
     <QtModules>core;gui;network;quick;quickcontrols2;opengl;openglwidgets;multimedia;multimediawidgets</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
     <QtQMLDebugEnable>true</QtQMLDebugEnable>
@@ -186,7 +186,6 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   <ItemGroup>
     <ClCompile Include="Login.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MediaFilterHandler.cpp" />
     <ClCompile Include="MediaPlayer.cpp" />
     <ClCompile Include="Navigator.cpp" />
     <ClCompile Include="VLCPlayerHandler.cpp">
@@ -198,7 +197,6 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
     <None Include="CoverImage.qml" />
-    <None Include="FilterBar.qml" />
     <None Include="MediaPlayer.qml" />
     <None Include="Navigator.qml" />
     <None Include="packages.config" />
@@ -213,7 +211,6 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   <ItemGroup>
     <QtMoc Include="VLCPlayerHandler.h" />
     <QtMoc Include="MediaPlayer.h" />
-    <QtMoc Include="MediaFilterHandler.h" />
     <QtMoc Include="Navigator.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

@@ -6,7 +6,6 @@
 #include "Login.h"
 #include "VLCPlayerHandler.h"  
 #include "MediaPlayer.h"
-#include <MediaFilterHandler.h>
 #include <Navigator.h>
 
 
@@ -18,10 +17,13 @@ int main(int argc, char* argv[])
 #if defined(Q_OS_WIN) && QT_VERSION_CHECK(5, 6, 0) <= QT_VERSION && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Round); // Ensure consistent scaling
 
     QGuiApplication app(argc, argv);
     QQuickStyle::setStyle("Fusion");
 
+    QGuiApplication::setAttribute(Qt::AA_Use96Dpi, true); // Treat FullHD (1920x1080) as baseline resolution
+    qputenv("QT_SCALE_FACTOR", "1.0"); // Set scale factor to 1.0
 
 
     // Register types with the correct template parameters

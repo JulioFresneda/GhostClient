@@ -19,7 +19,8 @@ Rectangle {
     signal mediaEnded
     signal nextEpisode
     signal lastEpisode
-
+    width: Screen.desktopAvailableWidth
+    height: Screen.desktopAvailableHeight
     function loadingPosFun(){
         if (isLoading && loadingPos < mediaPlayer.position){
             loadingPos = mediaPlayer.position
@@ -32,11 +33,11 @@ Rectangle {
 
     Window {
         id: floatingWindow
-        visible: isLoading && false
+        visible: isLoading
         flags: Qt.FramelessWindowHint | Qt.Window
         color: "transparent" // Set transparent background for the window
-        width: root.width
-        height: root.height
+        width: Screen.desktopAvailableWidth
+        height: Screen.desktopAvailableHeight
 
         Timer {
             id: periodicTimer
@@ -108,7 +109,8 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
-
+        width: Screen.desktopAvailableWidth
+        height: Screen.desktopAvailableHeight
         // Video area
         Rectangle {
             Layout.fillWidth: true
@@ -152,7 +154,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 160
             color: "#CC000000"
-
+            Layout.preferredWidth: Screen.desktopAvailableWidth
             ColumnLayout {
                 anchors {
                     fill: parent
@@ -170,86 +172,87 @@ Rectangle {
                     Layout.fillWidth: true
                 }
 
-                // Progress bar
                 RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+    Layout.fillWidth: true
+    spacing: 8
 
-                    Text {
-                        text: formatTime(mediaPlayer.position)
-                        color: "white"
-                        font.pixelSize: 12
-                    }
+    Text {
+        text: formatTime(mediaPlayer.position)
+        color: "white"
+        font.pixelSize: 12
+    }
 
-                    Item {
-                        Layout.fillWidth: true
-                        height: 20
+    Item {
+        Layout.fillWidth: true
+        height: 20
 
-                        Rectangle {
-                            id: progressBar
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width
-                            height: 4
-                            color: "#050505"
-                                
-                            radius: 2
+        Rectangle {
+            id: progressBar
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            height: 4
+            color: "#050505"
+            radius: 2
 
-                            Rectangle {
-                                width: mediaPlayer.duration > 0 ? 
-                                       (mediaPlayer.position / mediaPlayer.duration) * parent.width : 0
-                                height: parent.height
-                                gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-                                    GradientStop { position: 1.0; color: colors.superGreen }
-                                    GradientStop { position: 0.8; color: colors.green }
-                                    GradientStop { position: 0.0; color: colors.green }}
-                                radius: 2
-                            }
-                        }
-
-                        Rectangle {
-                            id: handle
-                            x: mediaPlayer.duration > 0 ? 
-                               (mediaPlayer.position / mediaPlayer.duration) * (parent.width - width) : 0
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: progressMouseArea.pressed ? 20 : 16
-                            height: width
-                            radius: width / 2
-                            color: colors.superGreen
-                        }
-
-                        MouseArea {
-                            id: progressMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            property bool moved: false
-                            onPressed: {
-                                
-                                let newPosition = (mouseX / width) * mediaPlayer.duration
-                                mediaPlayer.setPosition(Math.max(0, Math.min(newPosition, mediaPlayer.duration)))
-                                
-                            }
-
-                            onMouseXChanged: {
-                                if (pressed) {
-                                    let newPosition = (mouseX / width) * mediaPlayer.duration
-                                    moved: true
-                                }
-                                if (!pressed && moved){
-                                    mediaPlayer.setPosition(Math.max(0, Math.min(newPosition, mediaPlayer.duration)))
-                                    moved: false
-                                }            
-                
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: formatTime(mediaPlayer.duration)
-                        color: "white"
-                        font.pixelSize: 12
-                    }
+            Rectangle {
+                width: mediaPlayer.duration > 0 ?
+                       (progressMouseArea.dragPosition / mediaPlayer.duration) * parent.width : 0
+                height: parent.height
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 1.0; color: colors.superGreen }
+                    GradientStop { position: 0.8; color: colors.green }
+                    GradientStop { position: 0.0; color: colors.green }
                 }
+                radius: 2
+            }
+        }
+
+        Rectangle {
+            id: handle
+            x: mediaPlayer.duration > 0 ?
+               (progressMouseArea.dragPosition / mediaPlayer.duration) * (parent.width - width) : 0
+            anchors.verticalCenter: parent.verticalCenter
+            width: progressMouseArea.pressed ? 20 : 16
+            height: width
+            radius: width / 2
+            color: colors.superGreen
+        }
+
+        MouseArea {
+            id: progressMouseArea
+            anchors.fill: parent
+            hoverEnabled: true
+            property bool moved: false
+            property real dragPosition: mediaPlayer.position // Temporary position during drag
+
+            onPressed: {
+                // Calculate position immediately on press
+                dragPosition = (mouseX / width) * mediaPlayer.duration
+                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
+            }
+
+            onPositionChanged: {
+                if (pressed) {
+                    // Update drag position dynamically
+                    dragPosition = (mouseX / width) * mediaPlayer.duration
+                }
+            }
+
+            onReleased: {
+                // Commit the new position when released
+                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
+            }
+        }
+    }
+
+    Text {
+        text: formatTime(mediaPlayer.duration)
+        color: "white"
+        font.pixelSize: 12
+    }
+}
+
 
                 // Controls
                 RowLayout {

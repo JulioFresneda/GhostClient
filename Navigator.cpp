@@ -13,6 +13,8 @@ Navigator::Navigator(QObject* parent)
     m_selectedDirector(""),
     m_selectedProducer(""),
     m_filteredData(), 
+    m_sortBy("title"),
+    m_sortOrder("asc"),
     m_sidebarCategories({
         {"continueWatching", "Continuar viendo"},
         {"series", "Series"},
@@ -68,6 +70,14 @@ QString Navigator::selectedDirector() const {
 
 QString Navigator::selectedProducer() const {
     return m_selectedProducer;
+}
+
+QString Navigator::sortBy() const {
+    return m_sortBy;
+}
+
+bool Navigator::sortOrder() const {
+    return m_sortOrder;
 }
 
 // Setters
@@ -136,6 +146,17 @@ void Navigator::setSelectedProducer(const QString& producer) {
     }
 }
 
+void Navigator::setSortBy(const QString& sortBy) {
+    m_sortBy = sortBy.toLower();
+    updateFilteredData();
+    emit sortByChanged();
+}
+
+void Navigator::setSortOrder(const bool sortOrder) {
+    m_sortOrder = sortOrder;
+    updateFilteredData();
+    emit sortOrderChanged();
+}
 
 
 QVariantList Navigator::sidebarCategories() const {
@@ -372,9 +393,42 @@ void Navigator::updateFilteredData(QString searchText) {
         }
     }
 
+    
+
     m_filteredData = filteredMedia + filteredCollections;
+
+    sortFilteredData();
+    
+
     emit filteredDataChanged();
 }
+
+void Navigator::sortFilteredData() {
+    if (m_selectedCollectionId != "") {
+        if (m_currentCategory == "series") {
+            sortBySeasonAndEpisode(m_filteredData);
+        }
+        else if (m_currentCategory == "movies") {
+            sortByDouble(m_filteredData, "year", "year");
+        }
+        else {
+            sortByDouble(m_filteredData, "rating", "collection_rating");
+        }
+    }
+    else {
+        if (m_sortBy == "title") {
+            sortByString(m_filteredData, "title", "collection_title");
+        }
+        else if (m_sortBy == "year") {
+            sortByYear(m_filteredData);
+        }
+        else if (m_sortBy == "rating") {
+            sortByDouble(m_filteredData, "rating", "collection_rating");
+        }
+
+    }
+}
+
 void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollections) {
     QList<QString> filteredCollectionIDs;
     for (const auto& collection : filteredCollections) {
@@ -589,4 +643,73 @@ void Navigator::setMediaMetadata(QList<QVariantMap> mediaMetadata) {
     emit mediaMetadataChanged();
     emit mediaLoaded();
     updateFilteredData();
+}
+
+void Navigator::sortByString(QList<QVariantMap>& list, QString sortby_media, QString sortby_collection) {
+    std::sort(list.begin(), list.end(), [&sortby_media, &sortby_collection, this](const QVariantMap& a, const QVariantMap& b) {
+        QString valueA = a.contains(sortby_media) ? a[sortby_media].toString() : a.value(sortby_collection).toString();
+        QString valueB = b.contains(sortby_media) ? b[sortby_media].toString() : b.value(sortby_collection).toString();
+        if (this->m_sortOrder) {
+            return valueA < valueB;
+        }
+        else {
+            return valueA > valueB;
+        }
+     });
+}
+
+
+void Navigator::sortByDouble(QList<QVariantMap>& list, QString sortby_media, QString sortby_collection) {
+    std::sort(list.begin(), list.end(), [&sortby_media, &sortby_collection, this](const QVariantMap& a, const QVariantMap& b) {
+        double valueA = a.contains(sortby_media) ? a[sortby_media].toDouble() : a.value(sortby_collection).toDouble();
+        double valueB = b.contains(sortby_media) ? b[sortby_media].toDouble() : b.value(sortby_collection).toDouble();
+        if (this->m_sortOrder) {
+            return valueA < valueB;
+        }
+        else {
+            return valueA > valueB;
+        }
+        
+    });
+}
+
+void Navigator::sortByYear(QList<QVariantMap>& list) {
+    std::sort(list.begin(), list.end(), [this](const QVariantMap& a, const QVariantMap& b) {
+        int valueA = a.contains("year") ? a["year"].toInt() : this->getYearOfCollection(a["ID"].toString());
+        int valueB = b.contains("year") ? b["year"].toInt() : this->getYearOfCollection(b["ID"].toString());
+        if (this->m_sortOrder) {
+            return valueA < valueB;
+        }
+        else {
+            return valueA > valueB;
+        }
+        });
+}
+
+void Navigator::sortBySeasonAndEpisode(QList<QVariantMap>& list) {
+    std::sort(list.begin(), list.end(), [](const QVariantMap& a, const QVariantMap& b) {
+        // Extract season and episode values, with fallback to 0 if missing
+        int seasonA = a.value("season", 0).toInt();
+        int seasonB = b.value("season", 0).toInt();
+
+        if (seasonA != seasonB) {
+            return seasonA < seasonB; // Sort by season first
+        }
+
+        int episodeA = a.value("episode", 0).toInt();
+        int episodeB = b.value("episode", 0).toInt();
+        return episodeA < episodeB; // If seasons are equal, sort by episode
+        });
+}
+
+int Navigator::getYearOfCollection(QString collectionId) {
+    QList<QVariantMap> all_medias = getMediaByCollection(collectionId);
+    QVariantMap collection = getCollection(collectionId);
+    if (collection["type"] == "movie") {
+        sortByDouble(all_medias, "year", "year");
+    }
+    else {
+        sortBySeasonAndEpisode(all_medias);
+    }
+    return all_medias[0]["year"].toInt();
 }

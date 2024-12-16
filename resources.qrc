@@ -35,5 +35,7 @@
         <file>media/buttons/sound_2.svg</file>
         <file>media/logo_green.png</file>
         <file>media/logo_violet.png</file>
+        <file>media/buttons/sort_asc.svg</file>
+        <file>media/buttons/sort_desc.svg</file>
     </qresource>
 </RCC>

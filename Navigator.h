@@ -26,6 +26,10 @@ class Navigator : public QObject {
         Q_PROPERTY(bool showTopRated READ showTopRated WRITE setShowTopRated NOTIFY showTopRatedChanged)
         Q_PROPERTY(QString selectedDirector READ selectedDirector WRITE setSelectedDirector NOTIFY selectedDirectorChanged)
         Q_PROPERTY(QString selectedProducer READ selectedProducer WRITE setSelectedProducer NOTIFY selectedProducerChanged)
+        Q_PROPERTY(QString sortBy READ sortBy WRITE setSortBy NOTIFY sortByChanged)
+        Q_PROPERTY(bool sortOrder READ sortOrder WRITE setSortOrder NOTIFY sortOrderChanged)
+
+
 
 public:
     Navigator(QObject* parent = nullptr);
@@ -46,6 +50,9 @@ public:
     QString selectedProducer() const;
     bool groupByCollection() const;
 
+    QString sortBy() const;
+    bool sortOrder() const;
+
     // Setters
     void setCurrentCategory(const QString& category);
     void setSelectedCollectionId(const QString& collectionId);
@@ -55,6 +62,8 @@ public:
     void setSelectedDirector(const QString& director);
     void setSelectedProducer(const QString& producer);
     void setGroupByCollection(bool groupByCollection);
+    void setSortBy(const QString& sortBy);
+    void setSortOrder(const bool sortOrder);
 
     // Methods
     Q_INVOKABLE QVariantList sidebarCategories() const;
@@ -84,7 +93,8 @@ signals:
     void groupByCollectionChanged();
     void selectedDirectorChanged();
     void selectedProducerChanged();
-
+    void sortByChanged();
+    void sortOrderChanged();
     void mediaLoaded();
 
 private:
@@ -102,7 +112,8 @@ private:
     bool m_groupByCollection = true;
     QString m_selectedDirector;
     QString m_selectedProducer;
-
+    QString m_sortBy;
+    bool m_sortOrder;
     QMap<QString, QString> m_sidebarCategories;
 
     
@@ -122,5 +133,15 @@ private:
     void filterByFilterBarMedia(QList<QVariantMap>& filteredMedia);
     void filterByFilterBarCollection(QList<QVariantMap>& filteredCollections);
     void filterByChosenCollection(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections);
+
+    void sortByString(QList<QVariantMap>& list, QString sortby_media, QString sortby_collection);
+    void sortByDouble(QList<QVariantMap>& list, QString sortby_media, QString sortby_collection);
+    void sortByYear(QList<QVariantMap>& list);
+
+    void sortBySeasonAndEpisode(QList<QVariantMap>& list);
+    void sortFilteredData();
+
+    int getYearOfCollection(QString collectionId);
+
 };
 

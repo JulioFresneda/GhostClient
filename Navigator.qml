@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
 import QtMultimedia
+import QtQuick.VectorImage
 import com.ghoststream 1.0
 import "." 
 
@@ -11,7 +12,8 @@ Item {
     width: 1920
     height: 1080
 
-    
+    property int w_media: 9
+    property int h_media: 6
     
     property bool isPlayerVisible: false
     property var currentMediaId
@@ -528,6 +530,73 @@ Item {
                         }
                     }
 
+                    ComboBox {
+                        id: sortByComboBox
+                        Layout.preferredWidth: 250
+                        background: Rectangle {
+                            color: colors.background
+                            radius: 4
+                        }
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitHeight: 40
+                        model: ["Title", "Year", "Rating"]
+                        displayText: currentText || "Sort By"
+                        contentItem: Item {
+                            implicitWidth: sortText.implicitWidth
+                            implicitHeight: sortText.implicitHeight
+
+                            Text {
+                                id: sortText
+                                anchors {
+                                    left: parent.left
+                                    right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    leftMargin: 12
+                                    rightMargin: 8
+                                }
+                                text: sortByComboBox.displayText
+                                color: "white"
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                font.pointSize: 12
+                            }
+                        }
+                        
+
+
+
+                           
+                        onActivated: {
+                            navigator.sortBy = sortByComboBox.currentText === "Sort By" ? "title" : sortByComboBox.currentText
+                            //navigator.updateFilteredData()
+                        }
+                    }
+
+                    Button {
+                        id: sortOrder
+                        flat: true
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+
+                        contentItem: VectorImage {
+                            source: navigator.sortOrder ? "qrc:/media/buttons/sort_asc.svg" : "qrc:/media/buttons/sort_desc.svg"
+                            anchors.fill: parent // Make the VectorImage fill the Button
+                        }
+
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+
+                        onClicked: {
+                            navigator.sortOrder = !navigator.sortOrder; // Toggle the custom property
+                            console.log(navigator.sortBy)
+                        }
+                    }
+
+                    Item {
+                        width: 12 // Space to the left of the ComboBox
+                    }
+
                     // Clear Filters Button
                     Button {
                         text: "Clear Filters"
@@ -576,13 +645,13 @@ Item {
                 GridView {
                     id: mediaGrid
                     anchors.fill: parent
-                    cellWidth: 200
-                    cellHeight: 300
+                    cellWidth: Screen.desktopAvailableWidth*1.2 / w_media
+                    cellHeight: Screen.desktopAvailableWidth*1.2 / h_media
                     model: navigator.filteredData
 
                     delegate: MediaCard {
-                        width: 180
-                        height: 280
+                        width: Screen.desktopAvailableWidth / w_media
+                        height: Screen.desktopAvailableWidth / h_media
                         title: navigator.selectedCollectionId ? 
                                (modelData.title || "") : // Title is currentCat is not series or movies
                                (navigator.currentCategory === "series" || // If serie, or movies and grouped and coll title exists, colltitle
@@ -651,17 +720,17 @@ Item {
         property string episode: ""
         property string mediaId: ""
         signal clicked
-        color: "white"
+        color: "black"
         border.width: 5
-        bottomLeftRadius: 50
-        bottomRightRadius: 50
+        bottomLeftRadius: 0
+        bottomRightRadius: 0
         border.color: cardMouseArea.containsMouse ? colors.green : colors.strongWhite
 
-        gradient: Gradient {
+        //gradient: Gradient {
             //GradientStop { position: 0.0; color: colors.strongWhite }
-            GradientStop { position: 0.84; color: colors.strongWhite }
-            GradientStop { position: 0.88; color: "white" }
-        }
+        //    GradientStop { position: 0.84; color: colors.strongWhite }
+        //    GradientStop { position: 0.88; color: "white" }
+        //}
 
         // Main content container with border
         Rectangle {
@@ -751,14 +820,21 @@ Item {
                         Rectangle {
                             visible: season !== "" // Show only if season is not empty
                             width: parent.width
-                            height: seasonText.implicitHeight + 12 // Add padding inside the Rectangle
-                            color: "black" // Set the background color
+                            height: seasonText.implicitHeight + 8 // Add padding inside the Rectangle
+                            color: colors.strongWhite // Set the background color
+                            //gradient: Gradient {
+                            //    orientation: Gradient.Horizontal
+                            //    GradientStop { position: 0.0; color: colors.strongWhite }
+                            //    GradientStop { position: 1; color: colors.strongWhite }
+                            //    GradientStop { position: 0.1; color: "black" }
+                            //    GradientStop { position: 0.9; color: "black" }
+                            //}
                             //radius: 4
 
                             Text {
                                 id: seasonText
                                 text: "Season " + season + " - Episode " + episode
-                                color: "white" // White text color
+                                color: "black" // White text color
                                 font.pointSize: 10
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
@@ -776,7 +852,7 @@ Item {
                         Text {
                             id: titleText
                             text: title
-                            color: "black"
+                            color: "white"
                             font.pointSize: 12
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight

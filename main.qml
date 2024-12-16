@@ -9,7 +9,9 @@ ApplicationWindow {
     height: 1080
     color: "#121212" // Dark background
     title: "Ghost Stream"
+    visibility: Window.FullScreen
 
+    property int w_prof: 15
     QtObject {
         id: colors
         property string background: "#050505"
@@ -100,14 +102,14 @@ ApplicationWindow {
                 Repeater {
                     model: profileModel
                     delegate: Item {
-                        width: 150
-                        height: 150
+                        width: Screen.desktopAvailableWidth / w_prof
+                        height: Screen.desktopAvailableWidth / w_prof
                         //bottomLeftRadius: 50
                         //bottomRightRadius: 5
                         Rectangle {
                             id: profileRect
-                            width: 150
-                            height: 150
+                            width: Screen.desktopAvailableWidth / w_prof
+                            height: Screen.desktopAvailableWidth / w_prof
                             //radius: 12
                             
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -143,7 +145,7 @@ ApplicationWindow {
                                     topMargin: -5
                                     horizontalCenter: profileRect.horizontalCenter
                                 }
-                                width: 150 // Add padding
+                                width: Screen.desktopAvailableWidth / w_prof // Add padding
                                 height: contentText.height + 10 // Add padding
                                 color: "white"
                                 bottomLeftRadius: 50
