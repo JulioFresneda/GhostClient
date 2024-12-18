@@ -79,6 +79,8 @@ public:
     Q_INVOKABLE void setCollectionsData(QList<QVariantMap> collectionsData);
     Q_INVOKABLE void setMediaMetadata(QList<QVariantMap> mediaMetadata);
     Q_INVOKABLE QVariantMap getMediaMetadata(QString mediaId);
+    Q_INVOKABLE QVariantMap getMedia(QString mediaId);
+    Q_INVOKABLE QString getCollectionId(QString mediaId);
 
 signals:
     void collectionsDataChanged();

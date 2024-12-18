@@ -204,9 +204,7 @@ void Login::fetchMediaMetadata() {
         });
 }
 
-
-// Login.cpp
-void Login::loadCoverImage(const QString& mediaId) {
+QString Login::getBase64ImageFromServer(const QString& mediaId) {
     QUrl url(QString("http://localhost:18080/cover/%1").arg(mediaId));
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -215,22 +213,42 @@ void Login::loadCoverImage(const QString& mediaId) {
     jsonObj["token"] = m_storedToken;
     jsonObj["userID"] = m_userID;
 
+    // Send the request
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(jsonObj).toJson());
 
-    connect(reply, &QNetworkReply::finished, this, [=]() {
-        reply->deleteLater();
+    // Use QEventLoop to wait synchronously for the reply to finish
+    QEventLoop eventLoop;
+    connect(reply, &QNetworkReply::finished, &eventLoop, &QEventLoop::quit);
+    eventLoop.exec(); // Blocks until finished is emitted
 
-        if (reply->error() == QNetworkReply::NoError) {
-            QByteArray imageData = reply->readAll();
-            QString base64 = QString::fromLatin1(imageData.toBase64());
-            emit coverImageLoaded(mediaId, base64);
-        }
-        else {
-            emit coverImageError(mediaId);
-            //qDebug() << "Failed to load cover for ID:" << mediaId
-            //    << "Error:" << reply->errorString();
-        }
-        });
+    // Process the reply
+    QString base64;
+    if (reply->error() == QNetworkReply::NoError) {
+        QByteArray imageData = reply->readAll();
+        base64 = QString::fromLatin1(imageData.toBase64());
+    }
+    else {
+        qWarning() << "Network error:" << reply->errorString();
+        base64 = QString("");
+    }
+
+    reply->deleteLater();
+    return base64;
+}
+
+
+// Login.cpp
+void Login::loadCoverImage(const QString& mediaId, const QString& backupId) {
+    QString base64 = getBase64ImageFromServer(mediaId);
+    if (base64 == "") {
+        base64 = getBase64ImageFromServer(backupId);
+    }
+    if (base64 != "") {
+        emit coverImageLoaded(mediaId, base64);
+    }
+    else {
+        emit coverImageError(mediaId);
+    }
 }
 
 

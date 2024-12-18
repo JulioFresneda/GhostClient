@@ -713,3 +713,19 @@ int Navigator::getYearOfCollection(QString collectionId) {
     }
     return all_medias[0]["year"].toInt();
 }
+
+QString Navigator::getCollectionId(QString mediaId) {
+    QVariantMap media = getMedia(mediaId);
+    QString collectionId = media["collection_id"].toString();
+    return collectionId;
+
+}
+
+QVariantMap Navigator::getMedia(QString mediaId) {
+    for (const auto& media : m_mediaData) {
+        if (media["ID"] == mediaId) {
+            return media;
+        }
+    }
+    return QVariantMap();
+}

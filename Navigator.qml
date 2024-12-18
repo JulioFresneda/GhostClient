@@ -661,6 +661,7 @@ Item {
                         season: (modelData.season || "")
                         episode: (modelData.episode || "")
                         mediaId: modelData.ID || ""
+                        backupId: navigator.getCollectionId(modelData.ID)
                         property bool isCollection: modelData.collection_title ? true : false
                     }
                 }
@@ -719,6 +720,7 @@ Item {
         property string season: ""
         property string episode: ""
         property string mediaId: ""
+        property string backupId: ""
         signal clicked
         color: "black"
         border.width: 5
@@ -757,6 +759,7 @@ Item {
                 CoverImage {
                     anchors.fill: parent
                     mediaId: card.mediaId
+                    backupId: card.backupId
                 }
             }
 
@@ -894,83 +897,7 @@ Item {
     }
 
     // Component for list items
-    component MediaListItem: Rectangle {
-        id: listItem
-        property string title: ""
-        property string description: ""
-        property string mediaId: ""
-        property string collectionName: ""
-        signal clicked
-
-        color: colors.surface
-        radius: 4
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 8
-            spacing: 16
-
-            Rectangle {
-                width: 100
-                height: 56
-                color: colors.background
-                radius: 4
-
-                CoverImage {
-                    anchors.fill: parent
-                    mediaId: listItem.mediaId
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-
-                Text {
-                    Layout.fillWidth: true
-                    text: title
-                    color: colors.textPrimary
-                    font.pointSize: 12
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: collectionName
-                    color: colors.textSecondary
-                    font.pointSize: 10
-                    visible: collectionName !== ""
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: description
-                    color: colors.textSecondary
-                    font.pointSize: 9
-                    elide: Text.ElideRight
-                    maximumLineCount: 2
-                    wrapMode: Text.WordWrap
-                }
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: listItem.clicked()
-            onEntered: listItem.state = "hover"
-            onExited: listItem.state = ""
-        }
-
-        states: State {
-            name: "hover"
-            PropertyChanges {
-                target: listItem
-                color: Qt.darker(colors.surface, 1.2)
-            }
-        }
-    }
+    
 
     function formatTime(ms) {
         let seconds = Math.floor(ms / 1000)

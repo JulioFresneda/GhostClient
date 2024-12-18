@@ -5,6 +5,7 @@ import QtQuick.Controls.Basic
 Item {
     id: root
     property string mediaId: ""
+    property string backupId: ""
     property bool isLoading: true
     property bool hasError: false
 
@@ -71,7 +72,7 @@ Item {
 
     Component.onCompleted: {
         if (mediaId) {
-            loginManager.loadCoverImage(mediaId)
+            loginManager.loadCoverImage(mediaId, backupId)
         }
     }
 }

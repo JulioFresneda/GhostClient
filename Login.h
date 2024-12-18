@@ -26,7 +26,7 @@ public:
     Q_INVOKABLE void fetchMediaMetadata();
 
 public slots:
-    void loadCoverImage(const QString& mediaId);
+    void loadCoverImage(const QString& mediaId, const QString& backupId);
 
 signals:
     void hasStoredTokenChanged();
@@ -43,4 +43,6 @@ private:
     QString m_storedToken;
     QString m_userID;
     QString m_selectedProfileID;
+
+    QString getBase64ImageFromServer(const QString& mediaId);
 };
