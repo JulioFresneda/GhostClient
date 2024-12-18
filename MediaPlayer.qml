@@ -10,6 +10,7 @@ Rectangle {
 
     required property string mediaId
     required property string title
+    required property string token
     required property var mediaMetadata
 
     property bool isLoading: true
@@ -19,6 +20,7 @@ Rectangle {
     signal mediaEnded
     signal nextEpisode
     signal lastEpisode
+    signal updateMediaMetadata
     width: Screen.desktopAvailableWidth
     height: Screen.desktopAvailableHeight
     function loadingPosFun(){
@@ -127,9 +129,12 @@ Rectangle {
             VLCPlayerHandler {
                 id: mediaPlayer
                 videoSink: videoOutput.videoSink
+               
                 
                 Component.onCompleted: {
+                    
                     if (root.mediaId) {
+                        setToken(token)
                         if (root.mediaMetadata !== undefined) {
                             loadMedia(root.mediaId, root.mediaMetadata)
                         } else {
@@ -262,7 +267,10 @@ Rectangle {
                     Layout.alignment: Qt.AlignVCenter
                     Button {
                         //text: "←"
-                        onClicked: root.closeRequested()
+                        onClicked: {
+                            mediaPlayer.updateMediaMetadata()
+                            root.closeRequested()
+                        }
                         flat: true
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
@@ -441,12 +449,7 @@ Rectangle {
                                     mediaPlayer.setVolume(value)
                                 }
 
-                                Label {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    anchors.top: volumeSlider.bottom
-                                    text: "Volume: " + Math.round(volumeSlider.value) + "%"
-                                    font.pixelSize: 14
-                                }
+                                
 
                             
 

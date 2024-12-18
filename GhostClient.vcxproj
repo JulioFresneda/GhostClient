@@ -184,7 +184,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Login.cpp" />
+    <ClCompile Include="Medium.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MediaPlayer.cpp" />
     <ClCompile Include="Navigator.cpp" />
@@ -206,7 +206,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     <QtRcc Include="resources.qrc" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="Login.h" />
+    <QtMoc Include="Medium.h" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="VLCPlayerHandler.h" />

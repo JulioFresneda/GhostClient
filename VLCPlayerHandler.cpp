@@ -28,8 +28,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     , m_videoSink(nullptr)
 {
     QSettings settings("./conf.ini", QSettings::IniFormat);
-    m_token = settings.value("authToken").toString();
-    m_userId = settings.value("userID").toString();
+    m_token = "";
     m_profileId = settings.value("selectedProfileID").toString();
 
     const char* args[] = {
@@ -79,7 +78,9 @@ VLCPlayerHandler::~VLCPlayerHandler() {
 
 
 
-
+void VLCPlayerHandler::setToken(QString token) {
+    m_token = token;
+}
 
 
 
@@ -217,18 +218,21 @@ void VLCPlayerHandler::updateMediaInfo() {
     }
 }
 
+void VLCPlayerHandler::updateMediaMetadata() {
+    updateMediaMetadataOnServer();
+}
+
 void VLCPlayerHandler::updateMediaMetadataOnServer() {
     if (!m_mediaPlayer) return;
 
     QUrl url("http://localhost:18080/update_media_metadata");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8());
 
     // Create the JSON payload
     QJsonObject jsonPayload;
 
-    jsonPayload["userID"] = m_userId;
-    jsonPayload["token"] = m_token;
     jsonPayload["profileID"] = m_profileId;
     jsonPayload["mediaID"] = m_currentMediaId;
     libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
@@ -455,10 +459,9 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
         m_media = nullptr;
     }
 
-    QString baseUrl = QString("http://localhost:18080/media/%1/manifest?userID=%2&token=%3")
-        .arg(mediaId)
-        .arg(m_userId)
-        .arg(m_token);
+    QString baseUrl = QString("http://localhost:18080/media/%1/manifest")
+        .arg(mediaId);
+
 
     QByteArray urlBytes = baseUrl.toUtf8();
     m_media = libvlc_media_new_location(m_vlcInstance, urlBytes.constData());

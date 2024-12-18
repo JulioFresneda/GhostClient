@@ -17,6 +17,7 @@ Item {
     
     property bool isPlayerVisible: false
     property var currentMediaId
+    property string token
 
     Navigator {
         id: navigator
@@ -690,10 +691,12 @@ Item {
                     mediaId: currentMediaId
                     title: navigator.getMediaTitle(currentMediaId)
                     mediaMetadata: navigator.getMediaMetadata(mediaId)
+                    token: token
                     
                     onCloseRequested: {
                         isPlayerVisible = false
                         currentMediaId = ""
+                        navigator.update
                     }
                     onMediaEnded: {
                         mediaId = navigator.getNextEpisode(1)

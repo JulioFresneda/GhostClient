@@ -29,6 +29,7 @@ public:
     QVideoSink* videoSink() const;
     QVariantList subtitleTracks() const;
 
+    Q_INVOKABLE void setToken(QString token);
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void disableSubtitles();
     void startSubtitleMonitoring();
@@ -42,6 +43,7 @@ public:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
     Q_INVOKABLE void setVolume(int volume);
+    Q_INVOKABLE void updateMediaMetadata();
 
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
@@ -90,7 +92,6 @@ private:
 
     bool m_isPlaying;
     QString m_token;
-    QString m_userId;
     QString m_profileId;
     QVideoSink* m_videoSink;
     QTimer* m_positionTimer;

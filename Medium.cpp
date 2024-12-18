@@ -1,4 +1,4 @@
-#include "Login.h"
+#include "Medium.h"
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QNetworkRequest>
@@ -6,55 +6,105 @@
 #include <QJsonArray>
 
 
-Login::Login(QObject* parent) : QObject(parent) {
+Medium::Medium(QObject* parent) : QObject(parent) {
     QSettings settings("./conf.ini", QSettings::IniFormat);
-    m_storedToken = settings.value("authToken", "").toString();
+    m_storedPassword = settings.value("password", "").toString();
     m_userID = settings.value("userID", "").toString();
 
-
+    authenticate();
     // If credentials are stored, fetch the profile data
-    if (!m_storedToken.isEmpty() && !m_userID.isEmpty()) {
+    if (m_token != "") {
         fetchUserProfile();
     }
 }
 
-bool Login::hasStoredToken() const {
-    return !m_storedToken.isEmpty();
+void Medium::authenticate() {
+    if (m_storedPassword.isEmpty() || m_userID.isEmpty()) {
+        qDebug() << "Error: Empty userID or password.";
+        return;
+    }
+
+    // Define the URL for the login endpoint
+    QUrl url("http://localhost:18080/auth/login");
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    // Create the JSON payload with userID and password
+    QJsonObject json;
+    json["userID"] = m_userID;
+    json["password"] = m_storedPassword;
+
+    // Send a POST request with the JSON payload
+    QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(json).toJson());
+
+    // Use a QEventLoop to block until the network request finishes
+    QEventLoop loop;
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec(); // Blocks until the reply emits finished()
+
+    // Handle the response
+    if (reply->error() == QNetworkReply::NoError) {
+        // Parse the server response
+        QJsonDocument responseDoc = QJsonDocument::fromJson(reply->readAll());
+        QJsonObject responseObj = responseDoc.object();
+
+        // Extract the token from the response
+        if (responseObj.contains("token")) {
+            m_token = responseObj["token"].toString(); // Store the token for future requests
+            qDebug() << "Authentication successful! Token:" << m_token;
+        }
+        else {
+            qDebug() << "Authentication failed: Token not found in response.";
+        }
+    }
+    else {
+        // Handle errors
+        qDebug() << "Error authenticating:" << reply->errorString();
+    }
+
+    reply->deleteLater(); // Clean up the reply object
 }
 
-void Login::verifyLogin(const QString& token, const QString& userID) {
-    if (token.isEmpty() || userID.isEmpty()) {
-        qDebug() << "Token or User ID is missing.";
+
+
+bool Medium::hasStoredPassword() const {
+    return !m_storedPassword.isEmpty();
+}
+
+void Medium::verifyLogin(const QString& password, const QString& userID) {
+    if (password.isEmpty() || userID.isEmpty()) {
+        qDebug() << "Password or User ID is missing.";
         return;
     }
 
     // Store credentials using QSettings
     QSettings settings("./conf.ini", QSettings::IniFormat);
-    settings.setValue("authToken", token);
+    settings.setValue("password", password);
     settings.setValue("userID", userID);
     settings.sync();
 
-    qDebug() << "Login verified with token:" << token << "and user ID:" << userID;
+    qDebug() << "Login verified with password:" << password << "and user ID:" << userID;
 
     // Exit the application after saving credentials
     QCoreApplication::exit();
 }
 
 
-void Login::fetchUserProfile() {
-    if (m_storedToken.isEmpty() || m_userID.isEmpty()) return;
+void Medium::fetchUserProfile() {
+    if (m_token.isEmpty()) return; // Ensure the token is available
 
     QUrl url("http://localhost:18080/profile/list");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
 
+    // Create an empty JSON object (userID and password are no longer sent)
     QJsonObject json;
-    json["token"] = m_storedToken;
-    json["userID"] = m_userID;
 
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(json).toJson());
     connect(reply, &QNetworkReply::finished, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
+            // Parse the server response
             QJsonDocument responseDoc = QJsonDocument::fromJson(reply->readAll());
             QJsonObject responseObj = responseDoc.object();
             QJsonArray profilesArray = responseObj["profiles"].toArray();
@@ -74,12 +124,13 @@ void Login::fetchUserProfile() {
         else {
             qDebug() << "Error fetching profile:" << reply->errorString();
         }
-        reply->deleteLater();
+        reply->deleteLater(); // Clean up the reply object
         });
 }
 
-void Login::addProfile(const QString& profileID, const QString& pictureID) {
-    if (m_storedToken.isEmpty() || m_userID.isEmpty()) {
+
+void Medium::addProfile(const QString& profileID, const QString& pictureID) {
+    if (m_storedPassword.isEmpty() || m_userID.isEmpty()) {
         qDebug() << "UserID or Token is missing.";
         return;
     }
@@ -87,13 +138,13 @@ void Login::addProfile(const QString& profileID, const QString& pictureID) {
     QUrl url("http://localhost:18080/profile/add");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
+    request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
     // Create JSON body
     QJsonObject json;
-    json["userID"] = m_userID;
+
     json["profileID"] = profileID;
     json["pictureID"] = pictureID;
-    json["token"] = m_storedToken;
+
 
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(json).toJson());
     connect(reply, &QNetworkReply::finished, [this, reply]() {
@@ -108,21 +159,20 @@ void Login::addProfile(const QString& profileID, const QString& pictureID) {
         });
 }
 
-void Login::selectProfile(const QString& profileID) {
+void Medium::selectProfile(const QString& profileID) {
     QSettings settings;
     settings.setValue("selectedProfileID", profileID);
     m_selectedProfileID = profileID;
     emit profileSelected(); 
 }
 
-void Login::fetchMediaData() {
+void Medium::fetchMediaData() {
     QUrl url("http://localhost:18080/download/media_data");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
 
     QJsonObject json;
-    json["userID"] = m_userID;
-    json["token"] = m_storedToken;
     json["profileID"] = m_selectedProfileID;
 
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(json).toJson());
@@ -165,14 +215,13 @@ void Login::fetchMediaData() {
 }
 
 
-void Login::fetchMediaMetadata() {
+void Medium::fetchMediaMetadata() {
     QUrl url("http://localhost:18080/download/media_metadata");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
 
     QJsonObject json;
-    json["userID"] = m_userID;
-    json["token"] = m_storedToken;
     json["profileID"] = m_selectedProfileID;
 
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(json).toJson());
@@ -204,14 +253,14 @@ void Login::fetchMediaMetadata() {
         });
 }
 
-QString Login::getBase64ImageFromServer(const QString& mediaId) {
+QString Medium::getBase64ImageFromServer(const QString& mediaId) {
     QUrl url(QString("http://localhost:18080/cover/%1").arg(mediaId));
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
 
     QJsonObject jsonObj;
-    jsonObj["token"] = m_storedToken;
-    jsonObj["userID"] = m_userID;
+
 
     // Send the request
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(jsonObj).toJson());
@@ -238,7 +287,7 @@ QString Login::getBase64ImageFromServer(const QString& mediaId) {
 
 
 // Login.cpp
-void Login::loadCoverImage(const QString& mediaId, const QString& backupId) {
+void Medium::loadCoverImage(const QString& mediaId, const QString& backupId) {
     QString base64 = getBase64ImageFromServer(mediaId);
     if (base64 == "") {
         base64 = getBase64ImageFromServer(backupId);
@@ -251,5 +300,6 @@ void Login::loadCoverImage(const QString& mediaId, const QString& backupId) {
     }
 }
 
-
-
+QString Medium::getToken() {
+    return m_token;
+}

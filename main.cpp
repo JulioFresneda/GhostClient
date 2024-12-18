@@ -3,7 +3,7 @@
 #include <QQuickStyle>
 #include <QtQuickControls2>
 #include <QQmlContext>
-#include "Login.h"
+#include "Medium.h"
 #include "VLCPlayerHandler.h"  
 #include "MediaPlayer.h"
 #include <Navigator.h>
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 
 
     // Register types with the correct template parameters
-    qmlRegisterType<Login>("com.ghoststream", 1, 0, "Login");
+    qmlRegisterType<Medium>("com.ghoststream", 1, 0, "Medium");
     qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
     qmlRegisterType<MediaPlayer>("com.ghoststream", 1, 0, "MediaPlayer");
     //qmlRegisterType<MediaFilterHandler>("com.ghoststream", 1, 0, "MediaFilterHandler");

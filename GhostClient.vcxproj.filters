@@ -32,7 +32,7 @@
     <None Include="main.qml">
       <Filter>Source Files</Filter>
     </None>
-    <ClCompile Include="Login.cpp">
+    <ClCompile Include="Medium.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MediaPlayer.cpp">
@@ -41,27 +41,21 @@
     <ClCompile Include="VLCPlayerHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MediaFilterHandler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Navigator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="Login.h">
+    <QtMoc Include="Medium.h">
       <Filter>Header Files</Filter>
-    </QtMoc>
-    <QtMoc Include="VLCPlayerHandler.h">
-      <Filter>Source Files</Filter>
     </QtMoc>
     <QtMoc Include="MediaPlayer.h">
       <Filter>Source Files</Filter>
     </QtMoc>
-    <QtMoc Include="MediaFilterHandler.h">
+    <QtMoc Include="Navigator.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="Navigator.h">
+    <QtMoc Include="VLCPlayerHandler.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -97,9 +91,6 @@
     </None>
     <None Include="packages.config" />
     <None Include="StartAnimation.qml">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="FilterBar.qml">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

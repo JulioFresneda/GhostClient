@@ -25,7 +25,7 @@ ApplicationWindow {
         property string superGreen: "#66f557"
     }
 
-    Login {
+    Medium {
         id: loginManager
     }
     Loader {
@@ -63,6 +63,10 @@ ApplicationWindow {
             if (status === Loader.Error) {
                 console.error("Failed to load nav.qml")
             }
+        }
+        onLoaded: {
+            // Pass the token to the loaded item
+            appLoader.item.token = loginManager.getToken();
         }
     }
 
@@ -147,16 +151,16 @@ ApplicationWindow {
                                 }
                                 width: Screen.desktopAvailableWidth / w_prof // Add padding
                                 height: contentText.height + 10 // Add padding
-                                color: "white"
+                                color: "transparent"
                                 bottomLeftRadius: 50
                                 bottomRightRadius: 50  // Slightly rounded corners
-                                border.width: 5  // Border width
+                                border.width: 0//5  // Border width
                                 border.color: colors.strongWhite
 
                                 Text {
                                     id: contentText
                                     text: model.profileID
-                                    color: "black"
+                                    color: "white"
                                     font {
                                         pointSize: 16
                                        // weight: Font.Light
