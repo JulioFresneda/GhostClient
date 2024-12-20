@@ -30,7 +30,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     QSettings settings("./conf.ini", QSettings::IniFormat);
     m_token = "";
     m_profileId = settings.value("selectedProfileID").toString();
-
+    m_url = "http://" + settings.value("publicIP").toString();
     const char* args[] = {
         //"--no-video-title-show",
         //"--clock-jitter=0",
@@ -225,7 +225,7 @@ void VLCPlayerHandler::updateMediaMetadata() {
 void VLCPlayerHandler::updateMediaMetadataOnServer() {
     if (!m_mediaPlayer) return;
 
-    QUrl url("http://localhost:18080/update_media_metadata");
+    QUrl url(m_url + "/update_media_metadata");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8());
@@ -459,7 +459,7 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
         m_media = nullptr;
     }
 
-    QString baseUrl = QString("http://localhost:18080/media/%1/manifest")
+    QString baseUrl = QString(m_url + "/media/%1/manifest")
         .arg(mediaId);
 
 
@@ -511,7 +511,7 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
 }
 
 bool VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& language) {
-    QUrl url(QString("http://127.0.0.1:18080/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
+    QUrl url(QString(m_url + "/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
 
     // Check if the URL exists and returns 200
     QNetworkAccessManager manager;

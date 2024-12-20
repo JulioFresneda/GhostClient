@@ -45,6 +45,7 @@ private:
     QString m_token;
     QString m_userID;
     QString m_selectedProfileID;
+    QString m_url;
 
     QString getBase64ImageFromServer(const QString& mediaId);
 

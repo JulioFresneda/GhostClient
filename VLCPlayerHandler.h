@@ -89,6 +89,7 @@ private:
     libvlc_media_t* m_media;
     QString m_currentMediaId;
     QString m_currentSubtitlesCode;
+    QString m_url;
 
     bool m_isPlaying;
     QString m_token;
