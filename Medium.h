@@ -19,7 +19,7 @@ public:
 
     bool hasStoredPassword() const;
     Q_INVOKABLE void verifyLogin(const QString& token, const QString& userID);
-    Q_INVOKABLE void addProfile(const QString& profileID, const QString& pictureID);
+    Q_INVOKABLE void addProfile(const QString& profileID, int pictureID);
     Q_INVOKABLE void selectProfile(const QString& profileID);
 
     Q_INVOKABLE void fetchUserProfile();
@@ -45,6 +45,7 @@ private:
     QString m_token;
     QString m_userID;
     QString m_selectedProfileID;
+    QString m_url;
 
     QString getBase64ImageFromServer(const QString& mediaId);
 

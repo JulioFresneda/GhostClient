@@ -37,5 +37,37 @@
         <file>media/logo_violet.png</file>
         <file>media/buttons/sort_asc.svg</file>
         <file>media/buttons/sort_desc.svg</file>
+        <file>media/ghosts/5.png</file>
+        <file>media/ghosts/6.png</file>
+        <file>media/ghosts/7.png</file>
+        <file>media/ghosts/8.png</file>
+        <file>media/ghosts/9.png</file>
+        <file>media/ghosts/10.png</file>
+        <file>media/ghosts/11.png</file>
+        <file>media/ghosts/12.png</file>
+        <file>media/ghosts/13.png</file>
+        <file>media/ghosts/14.png</file>
+        <file>media/ghosts/15.png</file>
+        <file>media/ghosts/16.png</file>
+        <file>media/ghosts/17.png</file>
+        <file>media/ghosts/18.png</file>
+        <file>media/ghosts/19.png</file>
+        <file>media/ghosts/20.png</file>
+        <file>media/ghosts/21.png</file>
+        <file>media/ghosts/22.png</file>
+        <file>media/ghosts/23.png</file>
+        <file>media/ghosts/24.png</file>
+        <file>media/ghosts/27.png</file>
+        <file>media/ghosts/28.png</file>
+        <file>media/ghosts/29.png</file>
+        <file>media/ghosts/30.png</file>
+        <file>media/ghosts/31.png</file>
+        <file>media/ghosts/32.png</file>
+        <file>media/ghosts/33.png</file>
+        <file>media/ghosts/34.png</file>
+        <file>media/ghosts/35.png</file>
+        <file>media/ghosts/36.png</file>
+        <file>media/ghosts/25.png</file>
+        <file>media/ghosts/26.png</file>
     </qresource>
 </RCC>

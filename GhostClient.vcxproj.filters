@@ -93,5 +93,8 @@
     <None Include="StartAnimation.qml">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="AddProfileDialog.qml">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

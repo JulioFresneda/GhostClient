@@ -10,7 +10,7 @@ Medium::Medium(QObject* parent) : QObject(parent) {
     QSettings settings("./conf.ini", QSettings::IniFormat);
     m_storedPassword = settings.value("password", "").toString();
     m_userID = settings.value("userID", "").toString();
-
+    m_url = "http://" + settings.value("publicIP").toString() + ":38080";
     authenticate();
     // If credentials are stored, fetch the profile data
     if (m_token != "") {
@@ -25,7 +25,8 @@ void Medium::authenticate() {
     }
 
     // Define the URL for the login endpoint
-    QUrl url("http://localhost:18080/auth/login");
+    QUrl url(m_url + "/auth/login");
+    qDebug() << m_url;
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
@@ -93,7 +94,7 @@ void Medium::verifyLogin(const QString& password, const QString& userID) {
 void Medium::fetchUserProfile() {
     if (m_token.isEmpty()) return; // Ensure the token is available
 
-    QUrl url("http://localhost:18080/profile/list");
+    QUrl url(m_url + "/profile/list");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
@@ -129,13 +130,13 @@ void Medium::fetchUserProfile() {
 }
 
 
-void Medium::addProfile(const QString& profileID, const QString& pictureID) {
+void Medium::addProfile(const QString& profileID, int pictureID) {
     if (m_storedPassword.isEmpty() || m_userID.isEmpty()) {
         qDebug() << "UserID or Token is missing.";
         return;
     }
 
-    QUrl url("http://localhost:18080/profile/add");
+    QUrl url(m_url + "/profile/add");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
@@ -167,7 +168,7 @@ void Medium::selectProfile(const QString& profileID) {
 }
 
 void Medium::fetchMediaData() {
-    QUrl url("http://localhost:18080/download/media_data");
+    QUrl url(m_url + "/download/media_data");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
@@ -216,7 +217,7 @@ void Medium::fetchMediaData() {
 
 
 void Medium::fetchMediaMetadata() {
-    QUrl url("http://localhost:18080/download/media_metadata");
+    QUrl url(m_url + "/download/media_metadata");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header
@@ -254,7 +255,7 @@ void Medium::fetchMediaMetadata() {
 }
 
 QString Medium::getBase64ImageFromServer(const QString& mediaId) {
-    QUrl url(QString("http://localhost:18080/cover/%1").arg(mediaId));
+    QUrl url(QString(m_url + "/cover/%1").arg(mediaId));
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8()); // Add JWT in the Authorization header

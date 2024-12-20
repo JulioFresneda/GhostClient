@@ -12,8 +12,7 @@ Item {
     width: 1920
     height: 1080
 
-    property int w_media: 9
-    property int h_media: 6
+
     
     property bool isPlayerVisible: false
     property var currentMediaId
@@ -646,13 +645,13 @@ Item {
                 GridView {
                     id: mediaGrid
                     anchors.fill: parent
-                    cellWidth: Screen.desktopAvailableWidth*1.2 / w_media
-                    cellHeight: Screen.desktopAvailableWidth*1.2 / h_media
+                    cellWidth: 200
+                    cellHeight: 300
                     model: navigator.filteredData
 
                     delegate: MediaCard {
-                        width: Screen.desktopAvailableWidth / w_media
-                        height: Screen.desktopAvailableWidth / h_media
+                        width: 180
+                        height: 280
                         title: navigator.selectedCollectionId ? 
                                (modelData.title || "") : // Title is currentCat is not series or movies
                                (navigator.currentCategory === "series" || // If serie, or movies and grouped and coll title exists, colltitle

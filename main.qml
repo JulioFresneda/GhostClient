@@ -11,7 +11,6 @@ ApplicationWindow {
     title: "Ghost Stream"
     visibility: Window.FullScreen
 
-    property int w_prof: 15
     QtObject {
         id: colors
         property string background: "#050505"
@@ -32,7 +31,7 @@ ApplicationWindow {
         id: startAnimation
         anchors.fill: parent
         source: "qrc:/qt/qml/ghostclient/StartAnimation.qml"
-        active: true
+        active: false
         z: 100
 
         onLoaded: {
@@ -68,6 +67,13 @@ ApplicationWindow {
             // Pass the token to the loaded item
             appLoader.item.token = loginManager.getToken();
         }
+    }
+
+    AddProfileDialog {
+        id: addProfileDialog
+        onAddProfileClicked: {
+            loginManager.addProfile(addProfileDialog.profileName, addProfileDialog.pictureID)
+        }   
     }
 
     // Profile selection view
@@ -106,14 +112,14 @@ ApplicationWindow {
                 Repeater {
                     model: profileModel
                     delegate: Item {
-                        width: Screen.desktopAvailableWidth / w_prof
-                        height: Screen.desktopAvailableWidth / w_prof
+                        width: 160
+                        height: 160
                         //bottomLeftRadius: 50
                         //bottomRightRadius: 5
                         Rectangle {
                             id: profileRect
-                            width: Screen.desktopAvailableWidth / w_prof
-                            height: Screen.desktopAvailableWidth / w_prof
+                            width: 160
+                            height: 160
                             //radius: 12
                             
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -140,7 +146,8 @@ ApplicationWindow {
                                     fill: parent
                                     margins: 5
                                 }
-                                fillMode: Image.PreserveAspectFit
+                                sourceSize.width: 160
+                                sourceSize.height: 160
                             }
 
                             Rectangle {
@@ -149,7 +156,7 @@ ApplicationWindow {
                                     topMargin: -5
                                     horizontalCenter: profileRect.horizontalCenter
                                 }
-                                width: Screen.desktopAvailableWidth / w_prof // Add padding
+                                width: 60
                                 height: contentText.height + 10 // Add padding
                                 color: "transparent"
                                 bottomLeftRadius: 50
@@ -196,27 +203,48 @@ ApplicationWindow {
 
                 // Add profile button
                 Item {
-                    width: 200
-                    height: 200
+                    width: 160
+                    height: 160
                     visible: profileModel.count < 5
 
                     Rectangle {
                         id: addProfileRect
-                        width: 150
-                        height: 150
-                        radius: 12
-                        color: addProfileMouseArea.containsMouse ? "#404040" : "#2A2A2A"
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 160
+                        height: 160
+                        //radius: 12
+                        color: colors.background
+                        border.width: 5
+                        border.color: colors.strongWhite
+                        //bottomLeftRadius: 50
+                        //bottomRightRadius: 5
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: parent.radius
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#419A38" }
+                                //GradientStop { position: 0.5; color: "#163513" }
+                                GradientStop { position: 1.0; color: "#163513" }
+                            }
+                            visible: addProfileMouseArea.containsMouse
+                        }
+                        anchors.centerIn: parent
                         scale: 1.0
 
                         Text {
                             text: "+"
-                            color: "#FFFFFF"
+                            color: colors.strongWhite
                             font {
-                                pointSize: 40
+                                pointSize: 180
                                 weight: Font.Light
                             }
-                            anchors.centerIn: parent
+                            x: (parent.width  - width ) / 2
+                            y: (parent.height - height) / 2 - 27
+
+
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+
+                            
                         }
 
                         MouseArea {
@@ -228,6 +256,9 @@ ApplicationWindow {
                             onExited: addProfileRect.scale = 1.0
                         }
 
+                        // Include the dialog
+                        
+
                         Behavior on scale {
                             NumberAnimation {
                                 duration: 200
@@ -237,7 +268,7 @@ ApplicationWindow {
                     }
 
                     Text {
-                        text: "Add Profile"
+                        text: "Add Ghost"
                         color: "#FFFFFF"
                         font {
                             pointSize: 16
@@ -255,71 +286,7 @@ ApplicationWindow {
     }
 
     // Add Profile Dialog
-    Dialog {
-        id: addProfileDialog
-        title: "Add New Profile"
-        modal: true
-        anchors.centerIn: parent
-        width: 400
-        height: 300
-        background: Rectangle {
-            color: "#2A2A2A"
-            radius: 8
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 20
-
-            Text {
-                text: "Add Profile"
-                color: "#FFFFFF"
-                font.pointSize: 20
-                Layout.alignment: Qt.AlignHCenter
-            }
-
-            TextField {
-                id: profileNameField
-                placeholderText: "Enter profile name"
-                Layout.preferredWidth: 300
-                Layout.alignment: Qt.AlignHCenter
-                color: "#FFFFFF"
-                background: Rectangle {
-                    color: "#404040"
-                    radius: 4
-                }
-            }
-
-            ComboBox {
-                id: avatarComboBox
-                model: ["1", "2", "3", "4"]
-                Layout.preferredWidth: 300
-                Layout.alignment: Qt.AlignHCenter
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 10
-
-                Button {
-                    text: "Cancel"
-                    onClicked: {
-                        profileNameField.text = ""
-                        addProfileDialog.close()
-                    }
-                }
-
-                Button {
-                    text: "Add"
-                    enabled: profileNameField.text.length > 0
-                    onClicked: {
-                        loginManager.addProfile(profileNameField.text, avatarComboBox.currentText + ".png")
-                        profileNameField.text = ""
-                        addProfileDialog.close()
-                    }
-                }
-            }
-        }
-    }
+    
 
     ListModel {
         id: profileModel

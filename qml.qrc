@@ -6,5 +6,6 @@
         <file>PlayerControls.qml</file>
         <file>StartAnimation.qml</file>
         <file>Navigator.qml</file>
+        <file>AddProfileDialog.qml</file>
     </qresource>
 </RCC>
