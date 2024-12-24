@@ -186,7 +186,6 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   <ItemGroup>
     <ClCompile Include="Medium.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MediaPlayer.cpp" />
     <ClCompile Include="Navigator.cpp" />
     <ClCompile Include="VLCPlayerHandler.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug2|x64'">input</DynamicSource>
@@ -197,6 +196,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
     </ClCompile>
     <None Include="AddProfileDialog.qml" />
+    <None Include="conf.ini" />
     <None Include="CoverImage.qml" />
     <None Include="MediaPlayer.qml" />
     <None Include="Navigator.qml" />
@@ -211,7 +211,6 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="VLCPlayerHandler.h" />
-    <QtMoc Include="MediaPlayer.h" />
     <QtMoc Include="Navigator.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

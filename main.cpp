@@ -5,11 +5,17 @@
 #include <QQmlContext>
 #include "Medium.h"
 #include "VLCPlayerHandler.h"  
-#include "MediaPlayer.h"
 #include <Navigator.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iostream>
+
+// TODO
+// - update media metadata 401
+// - controls icons too dark
+// - change icon of audio
+// - try two voice canals
+//
 
 QString resolveDomain(const QString& domain, bool localHost = true) {
     if (localHost) {
@@ -64,7 +70,6 @@ int main(int argc, char* argv[])
     // Register types with the correct template parameters
     qmlRegisterType<Medium>("com.ghoststream", 1, 0, "Medium");
     qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
-    qmlRegisterType<MediaPlayer>("com.ghoststream", 1, 0, "MediaPlayer");
     //qmlRegisterType<MediaFilterHandler>("com.ghoststream", 1, 0, "MediaFilterHandler");
     qmlRegisterType<Navigator>("com.ghoststream", 1, 0, "Navigator");
 

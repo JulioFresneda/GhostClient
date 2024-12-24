@@ -30,7 +30,8 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     QSettings settings("./conf.ini", QSettings::IniFormat);
     m_token = "";
     m_profileId = settings.value("selectedProfileID").toString();
-    m_url = "http://" + settings.value("publicIP").toString();
+    QString port = settings.value("port").toString();
+    m_url = "http://" + settings.value("publicIP").toString() + ":" + port;
     const char* args[] = {
         //"--no-video-title-show",
         //"--clock-jitter=0",
@@ -76,13 +77,9 @@ VLCPlayerHandler::~VLCPlayerHandler() {
     cleanupVLC();
 }
 
-
-
 void VLCPlayerHandler::setToken(QString token) {
     m_token = token;
 }
-
-
 
 bool VLCPlayerHandler::verifyVLCSetup() {
     if (!m_vlcInstance || !m_mediaPlayer) {
@@ -111,8 +108,6 @@ void VLCPlayerHandler::setPosition(qint64 position) {
     qDebug() << "Seeking to position:" << position
         << "Duration:" << duration
         << "Percentage:" << percentage;
-
-    
 
     //emit positionChanged(position);
 }
@@ -423,8 +418,6 @@ void VLCPlayerHandler::setFullScreen(bool setFullScreen) {
 
 
 
-
-
 // In VLCPlayerHandler.h, add:
 struct SubtitleTrack {
     int id;
@@ -480,8 +473,6 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
         bool enExternalSubs = tryLoadSubtitle(mediaId, "en");
         
         playMedia(percentage_watched);
-
-        
 
         // Load subtitles synchronously
         
@@ -561,8 +552,6 @@ bool VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& la
     }
 }
 
-
-
 void VLCPlayerHandler::updateSubtitleTracks() {
     m_subtitleTracks.clear();
 
@@ -630,8 +619,6 @@ void VLCPlayerHandler::updateSubtitleTracks() {
 
     emit subtitleTracksChanged();
 }
-
-
 
 void VLCPlayerHandler::setSubtitleTrack(int trackId) {
     qDebug() << "\n=== Starting setSubtitleTrack ===";
@@ -755,4 +742,3 @@ void VLCPlayerHandler::setAudioTrack(int trackId) {
     libvlc_audio_set_track(m_mediaPlayer, trackId);
     qDebug() << "Setting audio track to:" << trackId;
 }
-

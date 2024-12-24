@@ -35,9 +35,6 @@
     <ClCompile Include="Medium.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MediaPlayer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="VLCPlayerHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -48,9 +45,6 @@
   <ItemGroup>
     <QtMoc Include="Medium.h">
       <Filter>Header Files</Filter>
-    </QtMoc>
-    <QtMoc Include="MediaPlayer.h">
-      <Filter>Source Files</Filter>
     </QtMoc>
     <QtMoc Include="Navigator.h">
       <Filter>Header Files</Filter>
@@ -94,6 +88,9 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="AddProfileDialog.qml">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="conf.ini">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
