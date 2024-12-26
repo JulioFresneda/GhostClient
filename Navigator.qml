@@ -93,6 +93,10 @@ Item {
             Layout.fillHeight: true
             color: colors.surface
             
+            
+            
+
+
             Image {
                 z: 0
                 anchors.fill: parent
@@ -108,7 +112,33 @@ Item {
                 spacing: 24
 
                 Item {
-                    Layout.preferredHeight: parent.height * 0.2 // Takes 3/4 of the height
+                    Layout.preferredHeight: parent.height * 0.02 // Takes 3/4 of the height
+                }
+
+                Button {
+                    id: imageButton
+                    z: 1
+                    Layout.fillWidth: true // Match the width of Repeater buttons
+                    height: width * 0.8    // Maintain the aspect ratio (adjust 0.6 to match your image's ratio)
+
+                    background: Rectangle {
+                        anchors.fill: parent
+                        color: "transparent"
+
+                        Image {
+                            anchors.fill: parent
+                            fillMode: Image.PreserveAspectFit // Maintain image proportions
+                            source: imageButton.hovered ? "qrc:/media/logo_green.png" : "qrc:/media/logo.png"
+                            smooth: true
+                        }
+                    }
+
+                    onClicked: {
+                        Qt.openUrlExternally("https://www.github.com/JulioFresneda/GhostClient");
+                    }
+                }
+                Item {
+                    Layout.preferredHeight: parent.height * 0.15 // Takes 3/4 of the height
                 }
 
                 // Categories
