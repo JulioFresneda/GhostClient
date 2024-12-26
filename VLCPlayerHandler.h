@@ -29,7 +29,6 @@ public:
     QVideoSink* videoSink() const;
     QVariantList subtitleTracks() const;
 
-    Q_INVOKABLE void setToken(QString token);
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void disableSubtitles();
     void startSubtitleMonitoring();

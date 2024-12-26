@@ -16,7 +16,7 @@ Item {
     
     property bool isPlayerVisible: false
     property var currentMediaId
-    property string token
+
 
     Navigator {
         id: navigator
@@ -84,7 +84,7 @@ Item {
     RowLayout {
         id: mainContent
         anchors.fill: parent
-        visible: !isPlayerVisible
+        visible: !isPlayerVisible || true
         spacing: 0
 
         // Sidebar
@@ -634,13 +634,104 @@ Item {
 
             // Content Grid/List View
             Rectangle {
+                id: bgrectangle
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: colors.surface
+                color: "#050505"
                 radius: 8
                 clip: true
                 z: 1
                 Layout.preferredHeight: parent.height - 360
+
+                Repeater {
+                    model: 5
+                    Image {
+                        id: ghost
+                        // Make sure your prefix is correct. For example: "qrc:/media/bgghost.png"
+                        source: "qrc:/media/bgghost.png"
+                        // Position it initially (for example, horizontally centered, vertically centered)
+                        x: Math.random() * (2000);
+                        y: Math.random() * (200) + (index-1)*200;
+                        //z: 100
+                        width: 100
+                        height: 100
+                        sourceSize.width: 100
+                        sourceSize.height: 100
+                        property bool flipped: false // Tracks whether the image is flipped
+                        transform: [Scale{ 
+                            origin.x: ghost.width / 2
+                            origin.y: ghost.height / 2
+                            xScale: 1 }]
+                        // Random horizontal movement
+                        property bool allowMovement: true
+                        property var randomduration: Math.floor(Math.random() * (2000)) + 1000;
+
+                        // When x changes, smoothly animate
+                        Behavior on x {
+                            NumberAnimation {
+                                duration: Math.floor(Math.random() * (30000 - 5000 + 1)) + 5000;
+                                easing.type: Easing.InOutQuad
+                            }
+                        }
+
+                        // Periodically choose a random X position
+                        Timer {
+                            interval: Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+                            running: true
+                            repeat: true
+                            onTriggered: {
+                                if (ghost.allowMovement) {
+                                    // Move the ghost to a random horizontal position
+                                    var newX = Math.random() * (bgrectangle.x + bgrectangle.width);
+
+                                    // Check if the ghost is moving left or right
+                                    if (newX < ghost.x && !ghost.flipped) {
+                                        ghost.flipped = true; // Flip left
+                                        ghost.transform[0].xScale = -1
+                                        console.log("Flip to left")
+                                    
+                                    } else if (newX > ghost.x && ghost.flipped) {
+                                        ghost.flipped = false; // Flip right
+                                        console.log("Flip to right")
+                                        ghost.transform[0].xScale = 1
+                                    }
+
+                                    // Move to the new random position
+                                    ghost.x = newX;
+                                
+                                    console.log("New ghost pos: " + ghost.x + " " + ghost.y)
+                                    console.log("jeje " + bgrectangle.y + " " + bgrectangle.height)
+                                }
+                            }
+                        }
+
+                        // Simple up/down "float" animation
+                        // This will move the ghost from y to (y - 30) and back in a loop
+                        SequentialAnimation {
+                            id: floatAnimation
+                            loops: Animation.Infinite
+                            running: true
+                            
+
+                            NumberAnimation {
+                                target: ghost
+                                property: "y"
+                                duration: ghost.randomduration
+                                easing.type: Easing.InOutQuad
+                                from: ghost.y
+                                to: ghost.y - 30
+                            }
+                            NumberAnimation {
+                                target: ghost
+                                property: "y"
+                                duration: ghost.randomduration
+                                easing.type: Easing.InOutQuad
+                                from: ghost.y - 30
+                                to: ghost.y
+                            }
+                        }
+                    }
+                }
 
                 GridView {
                     id: mediaGrid
@@ -671,17 +762,73 @@ Item {
         }
     }
 
+    Rectangle {
+        id: mainContainer
+        anchors.fill: parent
+        color: "transparent"
+        visible: isPlayerVisible
+        property bool animationComplete: false
+        // A child that can move freely along the x-axis
+        Rectangle {
+            id: transitionbg
+            // Anchor only top and bottom, so height matches the parent
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: parent.width*2  // So it matches the parent's width
+            color: "transparent"
+
+            // Start off-screen to the left
+            x: -width -100
+
+            Image {
+                anchors.fill: parent
+                id: transitionbg_image
+                source: "qrc:/media/transitionbg.png"
+                width: 3840
+                height: 1080
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+
+                // Optional: Make it look smoother when scaled
+                smooth: true
+            }
+
+            // Smooth animation whenever x changes
+            Behavior on x {
+                NumberAnimation {
+                    duration: 5000
+                    easing.type: Easing.InOutQuad
+                    
+                }
+            }
+
+            // For example, let's say you toggle `visible` in QML.
+            // We can slide in/out on "visible" changes:
+            onVisibleChanged: {
+                if (visible) {
+                    transitionbg.x = 0;       // Slide fully onscreen
+                }
+            }
+            onXChanged: {
+                if (x === 0) {
+                    console.log("Animation reached target value!");
+                    mainContainer.animationComplete = true
+                }
+            }
+        }
+    }
+
 
     Rectangle {
         id: playerContainer
         anchors.fill: parent
-        visible: isPlayerVisible
+        visible: isPlayerVisible && mainContainer.animationComplete
         z: isPlayerVisible ? 100 : -1
 
         Loader {
             id: playerLoader
             anchors.fill: parent
-            active: isPlayerVisible
+            active: isPlayerVisible && mainContainer.animationComplete
             onLoaded: {
                 console.log(navigator.mediaMetadata[currentMediaId])
             }
@@ -690,7 +837,6 @@ Item {
                     mediaId: currentMediaId
                     title: navigator.getMediaTitle(currentMediaId)
                     mediaMetadata: navigator.getMediaMetadata(mediaId)
-                    token: token
                     
                     onCloseRequested: {
                         isPlayerVisible = false

@@ -28,7 +28,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     , m_videoSink(nullptr)
 {
     QSettings settings("./conf.ini", QSettings::IniFormat);
-    m_token = "";
+    m_token = settings.value("token").toString();
     m_profileId = settings.value("selectedProfileID").toString();
     QString port = settings.value("port").toString();
     m_url = "http://" + settings.value("publicIP").toString() + ":" + port;
@@ -77,9 +77,6 @@ VLCPlayerHandler::~VLCPlayerHandler() {
     cleanupVLC();
 }
 
-void VLCPlayerHandler::setToken(QString token) {
-    m_token = token;
-}
 
 bool VLCPlayerHandler::verifyVLCSetup() {
     if (!m_vlcInstance || !m_mediaPlayer) {

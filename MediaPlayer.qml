@@ -10,7 +10,6 @@ Rectangle {
 
     required property string mediaId
     required property string title
-    required property string token
     required property var mediaMetadata
 
     property bool isLoading: true
@@ -38,8 +37,8 @@ Rectangle {
         visible: isLoading
         flags: Qt.FramelessWindowHint | Qt.Window
         color: "transparent" // Set transparent background for the window
-        width: Screen.desktopAvailableWidth
-        height: Screen.desktopAvailableHeight
+        width: 1920
+        height: 1080
 
         Timer {
             id: periodicTimer
@@ -63,24 +62,38 @@ Rectangle {
                 source: "qrc:/media/loading.png" // Path to your loading image
                 anchors.centerIn: parent
                 scale: 0.5
+                opacity: 0 // Initially transparent
+
                 transform: Rotation {
                     id: rotation
                     origin.x: loadingImage.width / 2
                     origin.y: loadingImage.height / 2
                     angle: 0
                 }
-                
             }
 
-            RotationAnimation {
-                id: rotateAnimation
-                target: rotation
-                property: "angle"
-                from: 0
-                to: 360
-                duration: 3000 // 3 seconds
-                loops: Animation.Infinite
-                running: false
+            ParallelAnimation  {
+                id: fadeInAndRotate
+                loops: Animation.Infinite // Infinite rotation after fade-in
+
+                // Step 1: Fade-in effect
+                NumberAnimation {
+                    target: loadingImage
+                    property: "opacity"
+                    from: 0
+                    to: 1
+                    duration: 1000 // 1 second fade-in
+                }
+
+                // Step 2: Start rotation
+                RotationAnimation {
+                    target: rotation
+                    property: "angle"
+                    from: 0
+                    to: 360
+                    duration: 3000 // 3 seconds per rotation
+                    loops: Animation.Infinite
+                }
             }
 
             Timer {
@@ -89,10 +102,11 @@ Rectangle {
                 running: true
                 repeat: false
                 onTriggered: {
-                    rotateAnimation.start(); // Start the animation after the timer ends
+                    fadeInAndRotate.start(); // Start the fade-in and rotation animation after the timer ends
                 }
             }
         }
+
 
 
         // Ensure the window stays in sync with the parent
@@ -128,18 +142,18 @@ Rectangle {
 
             VLCPlayerHandler {
                 id: mediaPlayer
-                videoSink: videoOutput.videoSink
+                
                
                 
                 Component.onCompleted: {
                     
                     if (root.mediaId) {
-                        setToken(token)
                         if (root.mediaMetadata !== undefined) {
                             loadMedia(root.mediaId, root.mediaMetadata)
                         } else {
                             loadMedia(root.mediaId, {})
                         }
+                        videoSink = videoOutput.videoSink
                     }
                 }
                 onMediaEnded: {
@@ -178,84 +192,84 @@ Rectangle {
                 }
 
                 RowLayout {
-    Layout.fillWidth: true
-    spacing: 8
+                    Layout.fillWidth: true
+                    spacing: 8
 
-    Text {
-        text: formatTime(mediaPlayer.position)
-        color: "white"
-        font.pixelSize: 12
-    }
+                    Text {
+                        text: formatTime(mediaPlayer.position)
+                        color: "white"
+                        font.pixelSize: 12
+                    }
 
-    Item {
-        Layout.fillWidth: true
-        height: 20
+                    Item {
+                        Layout.fillWidth: true
+                        height: 20
 
-        Rectangle {
-            id: progressBar
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width
-            height: 4
-            color: "#050505"
-            radius: 2
+                        Rectangle {
+                            id: progressBar
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
+                            height: 4
+                            color: "#050505"
+                            radius: 2
 
-            Rectangle {
-                width: mediaPlayer.duration > 0 ?
-                       (progressMouseArea.dragPosition / mediaPlayer.duration) * parent.width : 0
-                height: parent.height
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 1.0; color: colors.superGreen }
-                    GradientStop { position: 0.8; color: colors.green }
-                    GradientStop { position: 0.0; color: colors.green }
-                }
-                radius: 2
-            }
-        }
+                            Rectangle {
+                                width: mediaPlayer.duration > 0 ?
+                                       (progressMouseArea.dragPosition / mediaPlayer.duration) * parent.width : 0
+                                height: parent.height
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 1.0; color: colors.superGreen }
+                                    GradientStop { position: 0.8; color: colors.green }
+                                    GradientStop { position: 0.0; color: colors.green }
+                                }
+                                radius: 2
+                            }
+                        }
 
-        Rectangle {
-            id: handle
-            x: mediaPlayer.duration > 0 ?
-               (progressMouseArea.dragPosition / mediaPlayer.duration) * (parent.width - width) : 0
-            anchors.verticalCenter: parent.verticalCenter
-            width: progressMouseArea.pressed ? 20 : 16
-            height: width
-            radius: width / 2
-            color: colors.superGreen
-        }
+                        Rectangle {
+                            id: handle
+                            x: mediaPlayer.duration > 0 ?
+                               (progressMouseArea.dragPosition / mediaPlayer.duration) * (parent.width - width) : 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: progressMouseArea.pressed ? 20 : 16
+                            height: width
+                            radius: width / 2
+                            color: colors.superGreen
+                        }
 
-        MouseArea {
-            id: progressMouseArea
-            anchors.fill: parent
-            hoverEnabled: true
-            property bool moved: false
-            property real dragPosition: mediaPlayer.position // Temporary position during drag
+                        MouseArea {
+                            id: progressMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            property bool moved: false
+                            property real dragPosition: mediaPlayer.position // Temporary position during drag
 
-            onPressed: {
-                // Calculate position immediately on press
-                dragPosition = (mouseX / width) * mediaPlayer.duration
-                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
-            }
+                            onPressed: {
+                                // Calculate position immediately on press
+                                dragPosition = (mouseX / width) * mediaPlayer.duration
+                                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
+                            }
 
-            onPositionChanged: {
-                if (pressed) {
-                    // Update drag position dynamically
-                    dragPosition = (mouseX / width) * mediaPlayer.duration
-                }
-            }
+                            onPositionChanged: {
+                                if (pressed) {
+                                    // Update drag position dynamically
+                                    dragPosition = (mouseX / width) * mediaPlayer.duration
+                                }
+                            }
 
-            onReleased: {
-                // Commit the new position when released
-                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
-            }
-        }
-    }
+                            onReleased: {
+                                // Commit the new position when released
+                                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
+                            }
+                        }
+                    }
 
-    Text {
-        text: formatTime(mediaPlayer.duration)
-        color: "white"
-        font.pixelSize: 12
-    }
+                    Text {
+                        text: formatTime(mediaPlayer.duration)
+                        color: "white"
+                        font.pixelSize: 12
+                    }
 }
 
 

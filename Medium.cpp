@@ -12,6 +12,8 @@ Medium::Medium(QObject* parent) : QObject(parent) {
     m_userID = settings.value("userID", "").toString();
     m_url = "http://" + settings.value("publicIP").toString() + ":38080";
     authenticate();
+    settings.setValue("token", m_token);
+    settings.sync();
     // If credentials are stored, fetch the profile data
     if (m_token != "") {
         fetchUserProfile();
@@ -52,6 +54,7 @@ void Medium::authenticate() {
         // Extract the token from the response
         if (responseObj.contains("token")) {
             m_token = responseObj["token"].toString(); // Store the token for future requests
+
             qDebug() << "Authentication successful! Token:" << m_token;
         }
         else {

@@ -69,5 +69,7 @@
         <file>media/ghosts/36.png</file>
         <file>media/ghosts/25.png</file>
         <file>media/ghosts/26.png</file>
+        <file>media/bgghost.png</file>
+        <file>media/transitionbg.png</file>
     </qresource>
 </RCC>
