@@ -172,8 +172,13 @@ QVariantList Navigator::sidebarCategories() const {
 
 QString Navigator::getMediaTitle(QString mediaId) const {
     for (const auto& media : m_mediaData) {
-        if (media["id"] == mediaId) {
-            return media["title"].toString();
+        if (media["ID"] == mediaId) {
+            QString title = "";
+            if (media["type"] == "episode") {
+                title += "[S" + media["season"].toString() + " EP" + media["episode"].toString() + "] ";
+            }
+            title += media["title"].toString();
+            return title;
         }
     }
     return QString();
@@ -266,6 +271,36 @@ void Navigator::clearFilters() {
     emit showTopRatedChanged();
 }
 
+QString Navigator::getEpisodeType(QString currentMediaId) {
+    QVariantMap media = getMedia(currentMediaId);
+    if (media["type"] == "episode") {
+        if (media["episode"].toInt() == 1) {
+            return "FirstEpisode";
+        }
+        else if (media["ID"] == getFinalEpisode()) {
+            return "FinalEpisode";
+        }
+        else {
+            return "MiddleEpisode";
+        }
+    }
+    return "NoEpisode";
+}
+
+QString Navigator::getFinalEpisode() {
+    int max = -1;
+    QString mediaId = "";
+    for (const auto& media : m_mediaData) {
+        if (media["collection_id"].toString() == m_selectedCollectionId) {
+            if (media["episode"].toInt() > max) {
+                max = media["episode"].toInt();
+                mediaId = media["ID"].toString();
+            }
+        }
+    }
+    return mediaId;
+}
+
 QString Navigator::getNextEpisode(QString currentMediaId, int index) {
     int current_episode = -1;
     for (const auto& media : m_mediaData) {
@@ -274,7 +309,7 @@ QString Navigator::getNextEpisode(QString currentMediaId, int index) {
         }
     }
     for (const auto& media : m_mediaData) {
-        if (media["collection_id"].toString() == m_selectedCollectionId && media["ID"] == currentMediaId) {
+        if (media["collection_id"].toString() == m_selectedCollectionId) {
             if (media["episode"].toInt() == current_episode + index) {
                 return media["ID"].toString();
             }

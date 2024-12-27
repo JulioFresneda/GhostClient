@@ -861,28 +861,30 @@ Item {
             active: isPlayerVisible && mainContainer.animationComplete
             onLoaded: {
                 console.log(navigator.mediaMetadata[currentMediaId])
+                navigator.selectedCollectionId = navigator.getCollectionId(currentMediaId)
             }
             sourceComponent: Component {
                 MediaPlayer {
                     mediaId: currentMediaId
                     title: navigator.getMediaTitle(currentMediaId)
-                    mediaMetadata: navigator.getMediaMetadata(mediaId)
+                    mediaMetadata: navigator.getMediaMetadata(currentMediaId)
+                    episodeType: navigator.getEpisodeType(currentMediaId)
                     
                     onCloseRequested: {
                         isPlayerVisible = false
                         currentMediaId = ""
-                        navigator.update
+                        //navigator.update
                     }
                     onMediaEnded: {
-                        mediaId = navigator.getNextEpisode(1)
+                        mediaId = navigator.getNextEpisode(mediaId, 1)
                         mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     onNextEpisode: {
-                        mediaId = navigator.getNextEpisode(1)
+                        mediaId = navigator.getNextEpisode(mediaId, 1)
                         mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     onLastEpisode: {
-                        mediaId = navigator.getNextEpisode(-1)
+                        mediaId = navigator.getNextEpisode(mediaId, -1)
                         mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     
@@ -1065,7 +1067,8 @@ Item {
                     navigator.selectedCollectionId = modelData.ID
                     selectedCollectionTitle = modelData.collection_title
                     navigator.updateFilteredData()
-                } else {
+                } 
+                else {
                     console.log("Loading standalone media:", modelData.ID)
                     currentMediaId = modelData.ID
                     isPlayerVisible = true

@@ -234,8 +234,8 @@ void VLCPlayerHandler::updateMediaMetadataOnServer() {
     }
     
     jsonPayload["percentageWatched"] = QString::number(position, 'f', 3);
-    jsonPayload["languageChosen"] = "en";  // Default language
-    jsonPayload["subtitlesChosen"] = m_currentSubtitlesCode;  // Default subtitles
+    jsonPayload["languageChosen"] = m_currentAudioText;
+    jsonPayload["subtitlesChosen"] = m_currentSubtitlesText;  // Default subtitles
 
     QJsonDocument doc(jsonPayload);
     QByteArray jsonData = doc.toJson();
@@ -415,18 +415,6 @@ void VLCPlayerHandler::setFullScreen(bool setFullScreen) {
 
 
 
-// In VLCPlayerHandler.h, add:
-struct SubtitleTrack {
-    int id;
-    QString path;
-    QString language;
-    QString name;
-};
-// Add to private members:
-QList<SubtitleTrack> m_loadedSubtitles;
-int m_nextSubtitleId;
-
-
 // In VLCPlayerHandler.cpp:
 void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata) {
     if (!verifyVLCSetup()) {
@@ -440,9 +428,8 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
     
     m_currentMediaId = mediaId;
     m_subtitleTracks.clear();
-    m_loadedSubtitles.clear();
-    m_nextSubtitleId = 2;  // Start from 1 since -1 is reserved for "No subtitles"
-    emit subtitleTracksChanged();
+
+    
 
     if (m_media) {
         libvlc_media_release(m_media);
@@ -466,25 +453,15 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
 
         libvlc_media_player_set_media(m_mediaPlayer, m_media);
 
-        bool esExternalSubs = tryLoadSubtitle(mediaId, "es");
-        bool enExternalSubs = tryLoadSubtitle(mediaId, "en");
+        tryDownloadSubtitles(mediaId);
         
         playMedia(percentage_watched);
 
-        // Load subtitles synchronously
         
-
-
-
-        if (enExternalSubs or esExternalSubs) {
-            updateSubtitleTracks();
-        }
+        loadSubtitleTracks(mediaMetadata.value("subtitles_chosen").toString());
+        loadAudioTracks(mediaMetadata.value("language_chosen").toString());
         
-
-        QTimer::singleShot(1000, this, [this]() {
-            updateAudioTracks();
-            });
-
+        emit subtitleTracksChanged();
         emit mediaLoaded();
         libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
         emit durationChanged(duration);
@@ -498,174 +475,115 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
     }
 }
 
-bool VLCPlayerHandler::tryLoadSubtitle(const QString& mediaId, const QString& language) {
-    QUrl url(QString(m_url + "/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
-
-    // Check if the URL exists and returns 200
-    QNetworkAccessManager manager;
-    QNetworkRequest request(url);
-    QEventLoop loop;
-
-    QNetworkReply* reply = manager.get(request);
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec(); // Wait for the reply to finish
-
-    int httpStatusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (reply->error() != QNetworkReply::NoError || httpStatusCode != 200) {
-        qWarning() << "Subtitle URL does not exist or returned an error. Status code:" << httpStatusCode;
-        reply->deleteLater();
-        return false;
-    }
-
-    reply->deleteLater();
-
-    if (m_mediaPlayer) {
-        // Store subtitle information
-        QByteArray urlBytes = url.toString().toUtf8();
-        const char* charurl = urlBytes.constData();
-
-        qDebug() << charurl;
-        libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
-        int result = libvlc_media_player_add_slave(
-            m_mediaPlayer,
-            libvlc_media_slave_type_subtitle,
-            charurl,
-            false
-        );
-        qDebug() << "Result of adding subtitle:" << result;
-
-        if (result == 0) {
-            qDebug() << "Added subtitle track:" << language;
-            return true;
-        }
-        else {
-            qWarning() << "Failed to add subtitle track:" << language << "Error code:" << result;
-            return false;
-        }
-    }
-    else {
-        qWarning() << "Media player is not initialized.";
-        return false;
-    }
-}
-
-void VLCPlayerHandler::updateSubtitleTracks() {
-    m_subtitleTracks.clear();
-
-    // Add "No subtitles" option
-    QVariantMap noneTrack;
-    noneTrack["id"] = -1;
-    noneTrack["name"] = "No subtitles";
-    m_subtitleTracks.append(noneTrack);
-
-    libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
-    libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
-    libvlc_track_description_t* currentTrack = tracks;
-
-    // Assuming the new subtitle is the last one added
-    int newTrackId = -1;
-    QString trackName;
-
-    bool added_en = false;
-
-    if (currentTrack) {
-        while (currentTrack) {
-            newTrackId = currentTrack->i_id;
-            trackName = QString::fromUtf8(currentTrack->psz_name);
-
-            if (newTrackId != -1) {
-                // Store subtitle information
-                SubtitleTrack track;
-                track.id = newTrackId;
-                if (added_en) {
-                    track.language = "es";
-                    track.name = "Espanol";
-                }
-                else {
-                    track.language = "en";
-                    track.name = "English";
-                    added_en = true;
-                }
-
-                qDebug() << "Added subtitle track:" << track.name << "with ID:" << track.id;
-                m_loadedSubtitles.append(track);
-            }
 
 
-            currentTrack = currentTrack->p_next;
-        }
+bool VLCPlayerHandler::tryDownloadSubtitles(const QString& mediaId) {
 
-
-
-
-    }
-    else {
-        qWarning() << "Failed to retrieve subtitle tracks.";
-    }
-
-    // Release the track descriptions
-    libvlc_track_description_list_release(tracks);
-
-    // Add our loaded subtitle tracks
-    for (const SubtitleTrack& track : m_loadedSubtitles) {
-        QVariantMap trackInfo;
-        trackInfo["id"] = track.id;
-        trackInfo["name"] = track.language == "en" ? "English" : "Spanish";
-        m_subtitleTracks.append(trackInfo);
-    }
-
-    emit subtitleTracksChanged();
-}
-
-void VLCPlayerHandler::setSubtitleTrack(int trackId) {
-    qDebug() << "\n=== Starting setSubtitleTrack ===";
-    qDebug() << "Requested track ID:" << trackId;
-
-    if (!m_mediaPlayer) {
-        qDebug() << "ERROR: Media player is null!";
-        return;
-    }
-    qDebug() << libvlc_video_get_spu_count(m_mediaPlayer);
-    if (trackId == -1) {
-        qDebug() << "Disabling subtitles";
-        libvlc_video_set_spu(m_mediaPlayer, -1);
-        return;
-    }
-
-
-    libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
-
-    if (!tracks) {
-        qDebug() << "ERROR: No subtitle tracks available!";
-    }
-    else {
-        qDebug() << "Available subtitle tracks:";
-
-        // Iterate over the linked list of track descriptions
-        libvlc_track_description_t* currentDesc = tracks;
-        while (currentDesc) {
-            qDebug() << "Track ID:" << currentDesc->i_id << "Name:" << currentDesc->psz_name;
-            
-            if (currentDesc->i_id == trackId) {
-                m_currentSubtitlesCode = currentDesc->psz_name;
-            }
-            currentDesc = currentDesc->p_next;
-        }
-
-        // Release the memory used by the track descriptions
-        libvlc_track_description_list_release(tracks);
-    }
+    QList<QString> languages;
+    languages.append("es");
+    languages.append("en");
 
     
 
-    int currentTrack = libvlc_video_get_spu(m_mediaPlayer);
-    qDebug() << "Current subtitle track after setting:" << currentTrack;
-    int result = libvlc_video_set_spu(m_mediaPlayer, trackId);
-    qDebug() << "Set subtitle result:" << result;
-    currentTrack = libvlc_video_get_spu(m_mediaPlayer);
-    qDebug() << "Current subtitle track after setting:" << currentTrack;
+    for (const QString& language : languages) {
+        QUrl url(QString(m_url + "/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
 
-    qDebug() << "=== End setSubtitleTrack ===\n";
+        // Check if the URL exists and returns 200
+        QNetworkAccessManager manager;
+        QNetworkRequest request(url);
+        QEventLoop loop;
+
+        QNetworkReply* reply = manager.get(request);
+        QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec(); // Wait for the reply to finish
+
+        int httpStatusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (reply->error() != QNetworkReply::NoError || httpStatusCode != 200) {
+            qWarning() << "Subtitle URL does not exist or returned an error. Status code:" << httpStatusCode;
+            reply->deleteLater();
+            break;
+        }
+
+        reply->deleteLater();
+
+        if (m_mediaPlayer) {
+            // Store subtitle information
+            QByteArray urlBytes = url.toString().toUtf8();
+            const char* charurl = urlBytes.constData();
+
+            qDebug() << charurl;
+            libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
+            int result = libvlc_media_player_add_slave(
+                m_mediaPlayer,
+                libvlc_media_slave_type_subtitle,
+                charurl,
+                false
+            );
+            qDebug() << "Result of adding subtitle:" << result;
+
+            if (result == 0) {
+                qDebug() << "Added subtitle track:" << language;
+                
+            }
+            else {
+                qWarning() << "Failed to add subtitle track:" << language << "Error code:" << result;
+                //return false;
+            }
+        }
+        else {
+            qWarning() << "Media player is not initialized.";
+            return false;
+        }
+    }
+    return true;
+    
+}
+
+void VLCPlayerHandler::loadSubtitleTracks(QString subtitles_chosen) {
+    m_subtitleTracks.clear();
+
+    if (!m_mediaPlayer) return;
+
+    m_currentSubtitlesId = libvlc_video_get_spu(m_mediaPlayer);
+    int metadataSubtitleId = m_currentSubtitlesId;
+
+    libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
+    libvlc_track_description_t* currentTrack = tracks;
+
+    while (currentTrack) {
+        QVariantMap trackInfo;
+        trackInfo["id"] = currentTrack->i_id;
+        trackInfo["name"] = QString::fromUtf8(currentTrack->psz_name);
+        if (trackInfo["id"] == m_currentSubtitlesId) {
+            m_currentSubtitlesText = trackInfo["name"].toString();
+        }
+        else if (trackInfo["name"] == subtitles_chosen) {
+            metadataSubtitleId = trackInfo["id"].toInt();
+        }
+        if (trackInfo["id"] != -1) {
+            m_subtitleTracks.append(trackInfo);
+        }
+
+        currentTrack = currentTrack->p_next;
+    }
+
+    if (tracks) {
+        libvlc_track_description_list_release(tracks);
+    }
+    if (metadataSubtitleId != m_currentSubtitlesId) {
+        setSubtitleTrack(metadataSubtitleId);
+    }
+    reorderListById(m_subtitleTracks, m_currentSubtitlesId);
+    emit subtitleTracksChanged();
+
+}
+
+void VLCPlayerHandler::setSubtitleTrack(int trackId) {
+    if (!m_mediaPlayer) return;
+
+    libvlc_video_set_spu(m_mediaPlayer, trackId);
+    qDebug() << "Setting subtitles track to:" << trackId;
+    updateSubtitleSelected();
 }
 
 void VLCPlayerHandler::disableSubtitles() {
@@ -678,42 +596,74 @@ QVariantList VLCPlayerHandler::subtitleTracks() const {
     return m_subtitleTracks;
 }
 
-void VLCPlayerHandler::onMediaStateChanged() {
-    int mediaState = libvlc_media_player_get_state(m_mediaPlayer);
-
-    // Check if media is fully loaded and parsed
-    if (mediaState == libvlc_Ended || mediaState == libvlc_Playing || mediaState == libvlc_Paused) {
-        int spuCount = libvlc_video_get_spu_count(m_mediaPlayer);
-        if (spuCount > 0) {
-            qDebug() << "Subtitles are now available.";
-            updateSubtitleTracks();
-            return;  // Stop further checks if successful
-        }
-
-        int audioTrackCount = libvlc_audio_get_track_count(m_mediaPlayer);
-        if (audioTrackCount > 0) {
-            updateAudioTracks();
-        }
-        QTimer::singleShot(500, this, &VLCPlayerHandler::onMediaStateChanged);
-    }
-
-    // Recheck until loaded
-    QTimer::singleShot(500, this, &VLCPlayerHandler::onMediaStateChanged);
-}
-
-void VLCPlayerHandler::startSubtitleMonitoring() {
-    // Trigger state monitoring
-    onMediaStateChanged();
-}
 
 QVariantList VLCPlayerHandler::audioTracks() const {
     return m_audioTracks;
 }
 
-void VLCPlayerHandler::updateAudioTracks() {
+void VLCPlayerHandler::reorderListById(QVariantList& list, int selectedTrackId) {
+    // Find the index of the QVariantMap with the given "id"
+    int targetIndex = -1;
+    for (int i = 0; i < list.size(); ++i) {
+        QVariantMap map = list[i].toMap();
+        if (map["id"].toInt() == selectedTrackId) {
+            targetIndex = i;
+            break;
+        }
+    }
+
+    // If the target was found, move it to the front
+    if (targetIndex != -1) {
+        QVariant targetMap = list.takeAt(targetIndex); // Remove from original position
+        list.prepend(targetMap); // Add to the front
+    }
+}
+
+void VLCPlayerHandler::updateAudioSelected() {
+    m_currentAudioId = libvlc_audio_get_track(m_mediaPlayer);
+
+    libvlc_track_description_t* tracks = libvlc_audio_get_track_description(m_mediaPlayer);
+    libvlc_track_description_t* currentTrack = tracks;
+
+    while (currentTrack) {
+
+        if (currentTrack->i_id == m_currentAudioId) {
+            m_currentAudioText = QString::fromUtf8(currentTrack->psz_name);
+        }
+        currentTrack = currentTrack->p_next;
+    }
+
+    if (tracks) {
+        libvlc_track_description_list_release(tracks);
+    }
+}
+
+void VLCPlayerHandler::updateSubtitleSelected() {
+    m_currentSubtitlesId = libvlc_video_get_spu(m_mediaPlayer);
+
+    libvlc_track_description_t* tracks = libvlc_audio_get_track_description(m_mediaPlayer);
+    libvlc_track_description_t* currentTrack = tracks;
+
+    while (currentTrack) {
+
+        if (currentTrack->i_id == m_currentSubtitlesId) {
+            m_currentSubtitlesText = QString::fromUtf8(currentTrack->psz_name);
+        }
+        currentTrack = currentTrack->p_next;
+    }
+
+    if (tracks) {
+        libvlc_track_description_list_release(tracks);
+    }
+}
+
+void VLCPlayerHandler::loadAudioTracks(QString languageChosen) {
     m_audioTracks.clear();
 
     if (!m_mediaPlayer) return;
+
+    m_currentAudioId = libvlc_audio_get_track(m_mediaPlayer);
+    int metadataAudioId = m_currentAudioId;
 
     libvlc_track_description_t* tracks = libvlc_audio_get_track_description(m_mediaPlayer);
     libvlc_track_description_t* currentTrack = tracks;
@@ -722,14 +672,28 @@ void VLCPlayerHandler::updateAudioTracks() {
         QVariantMap trackInfo;
         trackInfo["id"] = currentTrack->i_id;
         trackInfo["name"] = QString::fromUtf8(currentTrack->psz_name);
-        m_audioTracks.append(trackInfo);
+        if (trackInfo["id"] == m_currentAudioId) {
+            m_currentAudioText = trackInfo["name"].toString();
+        }
+        else if (trackInfo["name"] == languageChosen) {
+            metadataAudioId = trackInfo["id"].toInt();
+        }
+        if (trackInfo["id"] != -1) {
+            m_audioTracks.append(trackInfo);
+        }
+        
         currentTrack = currentTrack->p_next;
     }
+
+    
 
     if (tracks) {
         libvlc_track_description_list_release(tracks);
     }
-
+    if (metadataAudioId != m_currentAudioId) {
+        setAudioTrack(metadataAudioId);
+    }
+    reorderListById(m_audioTracks, m_currentAudioId);
     emit audioTracksChanged();
 }
 
@@ -738,4 +702,15 @@ void VLCPlayerHandler::setAudioTrack(int trackId) {
 
     libvlc_audio_set_track(m_mediaPlayer, trackId);
     qDebug() << "Setting audio track to:" << trackId;
+    updateAudioSelected();
 }
+
+int VLCPlayerHandler::getAudioIndex() {
+    return m_currentAudioId;
+}
+
+QString VLCPlayerHandler::getAudioText() {
+    return m_currentAudioText;
+}
+
+

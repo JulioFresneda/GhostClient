@@ -11,6 +11,7 @@ Rectangle {
     required property string mediaId
     required property string title
     required property var mediaMetadata
+    required property string episodeType
 
     property bool isLoading: true
     property real loadingPos: -1
@@ -154,6 +155,8 @@ Rectangle {
                             loadMedia(root.mediaId, {})
                         }
                         videoSink = videoOutput.videoSink
+                        //audioSelector.currentIndex = mediaPlayer.getAudioIndex()
+                        //audioSelector.currentText = mediaPlayer.getAudioText()
                     }
                 }
                 onMediaEnded: {
@@ -210,7 +213,7 @@ Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width
                             height: 4
-                            color: "#050505"
+                            color: "#1E1E1E"
                             radius: 2
 
                             Rectangle {
@@ -302,6 +305,7 @@ Rectangle {
                     }
                     Item { Layout.preferredWidth: 800 }
                     Button {
+                        visible: episodeType == "MiddleEpisode" || episodeType == "FinalEpisode"
                         onClicked: {
                             root.lastEpisode()
                             if (root.mediaMetadata !== undefined) {
@@ -357,7 +361,7 @@ Rectangle {
                             //height: 6
                             //width: 6
                             source: parent.hovered
-                                ? (mediaPlayer.isPlaying ? "qrc:/media/buttons/play_hover.svg" : "qrc:/media/buttons/pause_hover.svg")
+                                ? (mediaPlayer.isPlaying ? "qrc:/media/buttons/pause_hover.svg" : "qrc:/media/buttons/play_hover.svg")
                                 : (mediaPlayer.isPlaying ? "qrc:/media/buttons/play.svg" : "qrc:/media/buttons/pause.svg")
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
@@ -383,6 +387,7 @@ Rectangle {
                     }
                     
                     Button {
+                        visible: episodeType == "MiddleEpisode" || episodeType == "FirstEpisode"
                         onClicked: {
                             root.nextEpisode()
                             if (root.mediaMetadata !== undefined) {
@@ -530,7 +535,7 @@ Rectangle {
                         model: mediaPlayer.audioTracks
                         textRole: "name"
                         valueRole: "id"
-                        currentIndex: 0
+                        //currentIndex: mediaPlayer.getAudioIndex()
                         onActivated: mediaPlayer.setAudioTrack(currentValue)
                         background: Rectangle {
                             z: -1
@@ -549,6 +554,7 @@ Rectangle {
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
                         }
+                        
                     }
                     Button {
                         //onClicked: 
@@ -575,13 +581,8 @@ Rectangle {
                         valueRole: "id"
                         currentIndex: 0
                         
-                        onActivated: {
-                            let trackId = currentValue
-                            if (trackId === -1) {
-                                mediaPlayer.disableSubtitles()
-                            } else {
-                                mediaPlayer.setSubtitleTrack(trackId)
-                            }
+                        onActivated: { 
+                            mediaPlayer.setSubtitleTrack(currentValue)        
                         }
                         Layout.preferredHeight: 24
                         background: Rectangle {
@@ -592,7 +593,7 @@ Rectangle {
                             //border.width: 4
                         }
                         contentItem: Text {
-                            text: subtitleSelector.currentText
+                            text: currentValue
                             color: "white"         // Text color
                             verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: Text.AlignLeft

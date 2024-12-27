@@ -17,7 +17,7 @@ class VLCPlayerHandler : public QObject {
         Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY playingStateChanged)
         Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
         Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY subtitleTracksChanged)
-
+        Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY audioTracksChanged)
 
 public:
     explicit VLCPlayerHandler(QObject* parent = nullptr);
@@ -31,12 +31,14 @@ public:
 
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void disableSubtitles();
-    void startSubtitleMonitoring();
 
-    Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY audioTracksChanged)
-    QVariantList audioTracks() const;
     Q_INVOKABLE void setAudioTrack(int trackId);
-
+    Q_INVOKABLE int getAudioIndex();
+    Q_INVOKABLE QString getAudioText();
+    void reorderListById(QVariantList& list, int selectedTrackId);
+    QVariantList audioTracks() const;
+    
+    
     Q_INVOKABLE void setFullScreen(bool fullScreen);
 
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -54,9 +56,6 @@ public slots:
     void stop();
     void forward30sec();
     void back30sec();
-
-private slots:
-    void onMediaStateChanged();
 
 signals:
     void durationChanged(qint64 duration);
@@ -77,17 +76,20 @@ private:
     void updateMediaInfo();
     void updateMediaMetadataOnServer();
     bool verifyVLCSetup();
-    bool tryLoadSubtitle(const QString& mediaId, const QString& language);
-    void updateSubtitleTracks();
-    void updateAudioTracks();
-
-    void fetchMediaMetadata();
+    bool tryDownloadSubtitles(const QString& mediaId);
+    void loadSubtitleTracks(QString subtitles_chosen);
+    void loadAudioTracks(QString language_chosen);
+    void updateAudioSelected();
+    void updateSubtitleSelected();
 
     libvlc_instance_t* m_vlcInstance;
     libvlc_media_player_t* m_mediaPlayer;
     libvlc_media_t* m_media;
     QString m_currentMediaId;
-    QString m_currentSubtitlesCode;
+    QString m_currentSubtitlesText;
+    int m_currentAudioId;
+    int m_currentSubtitlesId;
+    QString m_currentAudioText;
     QString m_url;
 
     bool m_isPlaying;
@@ -99,6 +101,8 @@ private:
     QTimer* m_loadingTimer;
     QVariantList m_subtitleTracks;
     QVariantList m_audioTracks;
+
+
     QNetworkAccessManager m_networkManager;
     int m_pendingSubtitles;
 

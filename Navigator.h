@@ -71,6 +71,7 @@ public:
     Q_INVOKABLE QVariantList getUniqueGenres();
     Q_INVOKABLE QStringList getUniqueProducers();
     Q_INVOKABLE void clearFilters();
+    Q_INVOKABLE QString getFinalEpisode();
     Q_INVOKABLE QString getNextEpisode(QString currentMediaId, int index);
     Q_INVOKABLE float getMediaProgress(QString mediaId);
     Q_INVOKABLE void updateFilteredData();
@@ -80,6 +81,7 @@ public:
     Q_INVOKABLE void setMediaMetadata(QList<QVariantMap> mediaMetadata);
     Q_INVOKABLE QVariantMap getMediaMetadata(QString mediaId);
     Q_INVOKABLE QVariantMap getMedia(QString mediaId);
+    Q_INVOKABLE QString getEpisodeType(QString currentMediaId);
     Q_INVOKABLE QString getCollectionId(QString mediaId);
 
 signals:
