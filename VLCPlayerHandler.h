@@ -45,6 +45,7 @@ public:
 
     Q_INVOKABLE void setVolume(int volume);
     Q_INVOKABLE void updateMediaMetadata();
+    Q_INVOKABLE void loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata);
 
 public slots:
     void attachVideoOutput(QQuickItem* videoOutput);
@@ -52,7 +53,7 @@ public slots:
     void setVideoSink(QVideoSink* sink);
     void playMedia(float percentage_watched);
     void pauseMedia();
-    void loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata);
+    
     void stop();
     void forward30sec();
     void back30sec();

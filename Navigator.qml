@@ -880,11 +880,13 @@ Item {
                         mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     onNextEpisode: {
-                        mediaId = navigator.getNextEpisode(mediaId, 1)
+                        currentMediaId = navigator.getNextEpisode(mediaId, 1)
+                        mediaId = currentMediaId
                         mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     onLastEpisode: {
-                        mediaId = navigator.getNextEpisode(mediaId, -1)
+                        currentMediaId = navigator.getNextEpisode(mediaId, -1)
+                        mediaId = currentMediaId
                         mediaMetadata = navigator.getMediaMetadata(mediaId)
                     }
                     

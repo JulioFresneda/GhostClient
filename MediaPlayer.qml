@@ -32,9 +32,13 @@ Rectangle {
             isLoading = false
         }
     }
-
+    function restartLoadingWindow(){
+        loadingPosCounter = 0
+        loadingPos = -1
+        isLoading = true
+    }
     Window {
-        id: floatingWindow
+        id: loadingWindow
         visible: isLoading
         flags: Qt.FramelessWindowHint | Qt.Window
         color: "transparent" // Set transparent background for the window
@@ -167,6 +171,7 @@ Rectangle {
                         loadMedia(root.mediaId, {})
                     }
                 }
+                
             }
             
         }
@@ -307,6 +312,7 @@ Rectangle {
                     Button {
                         visible: episodeType == "MiddleEpisode" || episodeType == "FinalEpisode"
                         onClicked: {
+                            restartLoadingWindow()
                             root.lastEpisode()
                             if (root.mediaMetadata !== undefined) {
                                 mediaPlayer.loadMedia(root.mediaId, root.mediaMetadata)
@@ -395,6 +401,7 @@ Rectangle {
                             } else {
                                 mediaPlayer.loadMedia(root.mediaId, {})
                             }
+                            restartLoadingWindow()
                         }
                         flat: true
                         Layout.preferredWidth: 16
