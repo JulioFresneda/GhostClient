@@ -170,6 +170,37 @@ QVariantList Navigator::sidebarCategories() const {
     return categories;
 }
 
+QString Navigator::getPreviousCategory() const {
+    bool previous = true;
+    QString value = "";
+    
+
+    for (auto it = m_sidebarCategories.cbegin(); it != m_sidebarCategories.cend(); ++it) {
+        
+        if (it.key() == m_currentCategory) {
+            previous = false;
+        }
+        if (previous) {
+            value = it.key();
+        }
+        
+    }
+    return value;
+}
+
+QString Navigator::getNextCategory() const {
+    bool next = false;
+    for (auto it = m_sidebarCategories.cbegin(); it != m_sidebarCategories.cend(); ++it) {
+        if (it.key() == m_currentCategory) {
+            next = true;
+        }
+        else if (next) {
+            return it.key();
+        }
+    }
+    return "";
+}
+
 QString Navigator::getMediaTitle(QString mediaId) const {
     for (const auto& media : m_mediaData) {
         if (media["ID"] == mediaId) {

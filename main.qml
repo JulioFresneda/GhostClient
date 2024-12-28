@@ -103,14 +103,7 @@ ApplicationWindow {
             }
             height: parent.height*1.61
 
-            // KeyNavigation attached property for the container
-            //Keys.onLeftPressed: profileRow.decrementCurrentIndex()
-            //Keys.onRightPressed: profileRow.incrementCurrentIndex()
-            Keys.forwardTo: profileContainer
-
-            //Component.onCompleted: {
-            //    profileContainer.forceActiveFocus() // Ensure focus starts at this container
-            //}
+            
 
             Row {
                 id: profileRow

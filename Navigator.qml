@@ -12,7 +12,7 @@ Item {
     width: 1920
     height: 1080
 
-
+    
     
     property bool isPlayerVisible: false
     property var currentMediaId
@@ -100,17 +100,34 @@ Item {
             Image {
                 z: 0
                 anchors.fill: parent
-                id: sidebar
+                id: sidebarImage
                 source: "qrc:/media/sidebar.png"
             }
 
             
 
             ColumnLayout {
+                id: sidebar
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 24
 
+                Keys.onUpPressed: {
+                    var prev = navigator.getPreviousCategory()
+                    navigator.currentCategory = prev != "" ? prev : navigator.currentCategory
+                    navigator.selectedCollectionId = ""  
+                }
+                Keys.onDownPressed: {
+                    var next = navigator.getNextCategory()
+                    navigator.currentCategory = next != "" ? next : navigator.currentCategory
+                    navigator.selectedCollectionId = ""  
+                }
+                Keys.onRightPressed: {
+                    mediaGrid.forceActiveFocus()
+                }
+                Component.onCompleted: {
+                    sidebar.forceActiveFocus() // Ensure focus starts at this container
+                }
                 Item {
                     Layout.preferredHeight: parent.height * 0.02 // Takes 3/4 of the height
                 }
@@ -147,6 +164,7 @@ Item {
                     delegate: ItemDelegate {
                         Layout.fillWidth: true
                         height: 48
+                        focus: index === sidebar.currentIndex
 
                         background: Rectangle {
                             color: navigator.currentCategory === modelData.key ? 
@@ -165,8 +183,6 @@ Item {
                         onClicked: {
                             navigator.currentCategory = modelData.key
                             navigator.selectedCollectionId = ""
-                            
-                            
                         }
                     }
                 }
@@ -797,10 +813,12 @@ Item {
                     cellWidth: 200
                     cellHeight: 300
                     model: navigator.filteredData
-
+                    focus: true
+                    currentIndex: -1
                     delegate: MediaCard {
                         width: 180
                         height: 280
+                        focus: GridView.isCurrentItem 
                         title: navigator.selectedCollectionId ? 
                                (modelData.title || "") : // Title is currentCat is not series or movies
                                (navigator.currentCategory === "series" || // If serie, or movies and grouped and coll title exists, colltitle
@@ -812,6 +830,42 @@ Item {
                         mediaId: modelData.ID || ""
                         backupId: navigator.getCollectionId(modelData.ID)
                         property bool isCollection: modelData.collection_title ? true : false
+                    }
+                    Keys.onPressed: {
+                        if (event.key === Qt.Key_Right) {
+                            moveToNextItem()
+                        } else if (event.key === Qt.Key_Left) {
+                            moveToPreviousItem()
+                        } else if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
+                            // LOAD MEDIA
+                        } else if (event.key === Qt.Key_Up){
+                            currentIndex = -1
+                            sidebar.forceActiveFocus()
+                            var prev = navigator.getPreviousCategory()
+                            navigator.currentCategory = prev != "" ? prev : navigator.currentCategory
+                            navigator.selectedCollectionId = "" 
+                        } else if (event.key === Qt.Key_Down){
+                            currentIndex = -1
+                            sidebar.forceActiveFocus()
+                            var next = navigator.getNextCategory()
+                            navigator.currentCategory = next != "" ? next : navigator.currentCategory
+                            navigator.selectedCollectionId = "" 
+                        }
+                            
+                    }
+
+                    function moveToNextItem() {
+                        if (currentIndex < count - 1) {
+                            currentIndex++
+                            console.log("Moved to next item:", currentIndex)
+                        }
+                    }
+
+                    function moveToPreviousItem() {
+                        if (currentIndex > 0) {
+                            currentIndex--
+                            console.log("Moved to previous item:", currentIndex)
+                        }
                     }
                 }
 
@@ -936,7 +990,7 @@ Item {
         border.width: 5
         bottomLeftRadius: 0
         bottomRightRadius: 0
-        border.color: cardMouseArea.containsMouse ? colors.green : colors.strongWhite
+        border.color: cardMouseArea.containsMouse || focus ? colors.green : colors.strongWhite
 
         //gradient: Gradient {
             //GradientStop { position: 0.0; color: colors.strongWhite }

@@ -67,6 +67,8 @@ public:
 
     // Methods
     Q_INVOKABLE QVariantList sidebarCategories() const;
+    Q_INVOKABLE QString getPreviousCategory() const;
+    Q_INVOKABLE QString getNextCategory() const;
     Q_INVOKABLE QString getMediaTitle(QString mediaId) const;
     Q_INVOKABLE QVariantList getUniqueGenres();
     Q_INVOKABLE QStringList getUniqueProducers();
