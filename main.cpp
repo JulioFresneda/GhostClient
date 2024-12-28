@@ -11,10 +11,10 @@
 #include <iostream>
 
 // TODO
-// - update media metadata 401
-// - controls icons too dark
-// - change icon of audio
-// - try two voice canals
+// - link to github small when navigating
+// - exit button
+// - any more visuals?
+// - testing and production
 //
 
 QString resolveDomain(const QString& domain, bool localHost = true) {

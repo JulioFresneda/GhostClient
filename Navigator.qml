@@ -206,6 +206,34 @@ Item {
                         
                     }
                 }
+                Item { height: 60 } // Spacer
+                ItemDelegate {
+                    Layout.fillWidth: true
+                    height: 0
+                    visible: true
+
+                    background: Rectangle {
+                        //
+                        color: "black"
+                        //radius: 8
+                        //border.width: 4
+                        //border.color: colors.strongWhite
+                    }
+
+                    contentItem: RowLayout {
+                        spacing: 0
+                        Text {
+                            text: "Salir"
+                            color: colors.textSecondary
+                            font.pointSize: 16
+                        }
+                    }
+
+                    onClicked: {
+                        Qt.quit()
+                        
+                    }
+                }
                 Item { Layout.fillHeight: true } // Spacer
             }
         }

@@ -103,31 +103,46 @@ ApplicationWindow {
             }
             height: parent.height*1.61
 
+            // KeyNavigation attached property for the container
+            //Keys.onLeftPressed: profileRow.decrementCurrentIndex()
+            //Keys.onRightPressed: profileRow.incrementCurrentIndex()
+            Keys.forwardTo: profileContainer
+
+            //Component.onCompleted: {
+            //    profileContainer.forceActiveFocus() // Ensure focus starts at this container
+            //}
+
             Row {
                 id: profileRow
                 anchors.centerIn: parent
                 spacing: 40
+        
+                // Property to track current focus index
+                property int currentIndex: 0
+        
                 
+        
                 // Existing profiles
                 Repeater {
                     model: profileModel
                     delegate: Item {
+                        id: profileItem
                         width: 160
                         height: 160
-                        //bottomLeftRadius: 50
-                        //bottomRightRadius: 5
+
+                        // Make item focusable
+                        focus: index === profileRow.currentIndex
+                      
+                
                         Rectangle {
                             id: profileRect
                             width: 160
                             height: 160
-                            //radius: 12
-                            
                             anchors.horizontalCenter: parent.horizontalCenter
-                            scale: 1.0
+                            scale: index === profileRow.currentIndex || profileMouseArea.containsMouse ? 1.1 : 1.0
                             color: colors.strongWhite
-                            //border.width: 5
-                            //bottomLeftRadius: 50
-                            //bottomRightRadius: 5
+
+                            // Focus visual indicator
                             Rectangle {
                                 anchors.fill: parent
                                 radius: parent.radius
@@ -136,8 +151,10 @@ ApplicationWindow {
                                     GradientStop { position: 0.5; color: "#163513" }
                                     GradientStop { position: 1.0; color: "#163513" }
                                 }
-                                visible: profileMouseArea.containsMouse
+                                visible: index === profileRow.currentIndex || profileMouseArea.containsMouse
                             }
+
+                            
 
                             Image {
                                 id: profileImage
@@ -157,12 +174,10 @@ ApplicationWindow {
                                     horizontalCenter: profileRect.horizontalCenter
                                 }
                                 width: 60
-                                height: contentText.height + 10 // Add padding
+                                height: contentText.height + 10
                                 color: "transparent"
                                 bottomLeftRadius: 50
-                                bottomRightRadius: 50  // Slightly rounded corners
-                                border.width: 0//5  // Border width
-                                border.color: colors.strongWhite
+                                bottomRightRadius: 50
 
                                 Text {
                                     id: contentText
@@ -170,7 +185,6 @@ ApplicationWindow {
                                     color: "white"
                                     font {
                                         pointSize: 16
-                                       // weight: Font.Light
                                     }
                                     anchors.centerIn: parent
                                     horizontalAlignment: Text.AlignHCenter
@@ -178,15 +192,12 @@ ApplicationWindow {
                                     wrapMode: Text.WordWrap
                                 }
                             }
-                            
 
                             MouseArea {
                                 id: profileMouseArea
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 onClicked: loginManager.selectProfile(model.profileID)
-                                onEntered: profileRect.scale = 1.1
-                                onExited: profileRect.scale = 1.0
                             }
 
                             Behavior on scale {
@@ -197,38 +208,57 @@ ApplicationWindow {
                             }
                         }
 
-                        
+                        // Handle Enter/Return key press
+                        //Keys.onReturnPressed: loginManager.selectProfile(model.profileID)
+                        //Keys.onEnterPressed: loginManager.selectProfile(model.profileID)
+
+                        // Set focus when current index matches
+                        //onActiveFocusChanged: {
+                        //    if (activeFocus) {
+                        //        profileRow.currentIndex = index
+                        //    }
+                        //}
+
+                        //Component.onCompleted: {
+                        //    if (index === 0) {
+                        //        profileItem.forceActiveFocus()
+                        //    }
+                        //}
                     }
                 }
 
                 // Add profile button
                 Item {
+                    id: addProfileItem
                     width: 160
                     height: 160
                     visible: profileModel.count < 5
+            
+                    // Make add button focusable
+                    //activeFocusOnTab: true
+                    ////KeyNavigation.left: profileRepeater.count > 0 ? profileRepeater.itemAt(profileRepeater.count - 1) : null
 
                     Rectangle {
                         id: addProfileRect
                         width: 160
                         height: 160
-                        //radius: 12
                         color: colors.background
                         border.width: 5
                         border.color: colors.strongWhite
-                        //bottomLeftRadius: 50
-                        //bottomRightRadius: 5
+                        anchors.centerIn: parent
+                        scale: profileRow.currentIndex === profileModel.count || addProfileMouseArea.containsMouse ? 1.1 : 1.0
+
                         Rectangle {
                             anchors.fill: parent
                             radius: parent.radius
                             gradient: Gradient {
                                 GradientStop { position: 0.0; color: "#419A38" }
-                                //GradientStop { position: 0.5; color: "#163513" }
                                 GradientStop { position: 1.0; color: "#163513" }
                             }
-                            visible: addProfileMouseArea.containsMouse
+                            visible: profileRow.currentIndex === profileModel.count || addProfileMouseArea.containsMouse
                         }
-                        anchors.centerIn: parent
-                        scale: 1.0
+
+                        
 
                         Text {
                             text: "+"
@@ -239,12 +269,8 @@ ApplicationWindow {
                             }
                             x: (parent.width  - width ) / 2
                             y: (parent.height - height) / 2 - 27
-
-
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-
-                            
                         }
 
                         MouseArea {
@@ -252,12 +278,7 @@ ApplicationWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             onClicked: addProfileDialog.open()
-                            onEntered: addProfileRect.scale = 1.1
-                            onExited: addProfileRect.scale = 1.0
                         }
-
-                        // Include the dialog
-                        
 
                         Behavior on scale {
                             NumberAnimation {
@@ -280,7 +301,36 @@ ApplicationWindow {
                             horizontalCenter: addProfileRect.horizontalCenter
                         }
                     }
+
+                    
                 }
+            }
+        
+            Keys.onLeftPressed: {
+                if (profileRow.currentIndex > 0) {
+                    profileRow.currentIndex--
+                    forceActiveFocus() // Ensure container retains focus
+                }
+            }
+
+            Keys.onRightPressed: {
+                var maxIndex = profileModel.count + (profileModel.count < 5 ? 1 : 0) - 1
+                if (profileRow.currentIndex < maxIndex) {
+                    profileRow.currentIndex++
+                    forceActiveFocus() // Ensure container retains focus
+                }
+            }
+
+            Keys.onReturnPressed: {
+                if (profileRow.currentIndex === profileModel.count) {
+                    addProfileDialog.open()
+                } else {
+                    loginManager.selectProfile(profileModel.get(profileRow.currentIndex).profileID)
+                }
+            }
+
+            Component.onCompleted: {
+                profileContainer.forceActiveFocus() // Ensure focus starts at this container
             }
         }
     }
