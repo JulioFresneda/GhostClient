@@ -284,14 +284,92 @@ Rectangle {
                 // Controls
                 RowLayout {
                     id: rowcontrols
-                    property int currentIndex: 3
-                    //focus: true
+                    Component.onCompleted: {
+                        rowcontrols.forceActiveFocus() // Ensure focus starts at this container
+                    }
+                    focus: true
                     Layout.fillWidth: true
                     //spacing: 16
                     Layout.alignment: Qt.AlignVCenter
+    
+                    Keys.onBackPressed: {
+                        backButton.click()
+                    }
+                    Keys.onEscapePressed: {
+                        backButton.click()
+                    }
+                    Keys.onLeftPressed: {
+                        if(leftButton.visible){
+                            leftButton.click()
+                        }
+                    }
+                    Keys.onPressed: {
+                        if(event.key === Qt.Key_MediaFastForward){
+                            ffButton.click()
+                        }
+                        if(event.key === Qt.Key_MediaRewind){
+                            rewindButton.click()
+                        }
+                    }
+                    Keys.onDigit1Pressed: {
+                        if (audioSelector.currentIndex < audioSelector.model.length - 1) {
+                            audioSelector.currentIndex++
+                        } else {
+                            audioSelector.currentIndex = 0 // Wrap around to the first item
+                        }
+                        mediaPlayer.setAudioTrack(audioSelector.currentValue)
+                    }
+                    Keys.onDigit2Pressed: {
+                        if (subtitleSelector.currentIndex < subtitleSelector.model.length - 1) {
+                            subtitleSelector.currentIndex++
+                        } else {
+                            subtitleSelector.currentIndex = 0 // Wrap around to the first item
+                        }
+                        mediaPlayer.setSubtitleTrack(subtitleSelector.currentValue) 
+                    }
+                    Keys.onDigit9Pressed: {
+                        ffButton.click()
+                    }
+                    Keys.onDigit7Pressed: {
+                        rewindButton.click()
+                    }
+
+                    Keys.onRightPressed: {
+                        if(rightButton.visible){
+                            rightButton.click()
+                        }
+                    }
+                    Keys.onUpPressed: {
+                        fullscreenButton.click()
+                    }
+                    Keys.onDownPressed: {
+                        mediaPlayer.setFullScreen(false)
+                    }
+                    Keys.onVolumeUpPressed: {
+                        if(volumeSlider.value + 10 > 100){
+                            volumeSlider.value = 100
+                        }
+                        else {
+                            volumeSlider.value += 10
+                        }
+                    }
+                    Keys.onReturnPressed: {
+                        playpauseButton.clicked()
+                    }
+                    Keys.onVolumeDownPressed: {
+                        
+                        if(volumeSlider.value - 10 < 0){
+                            volumeSlider.value = 0
+                        }
+                        else {
+                            volumeSlider.value -= 10
+                        }
+                    }
+
+
                     Button {
-                        //text: "←"
-                        focus: rowcontrols.currentIndex === 0
+                        id: backButton
+                        //focus: rowcontrols.currentIndex === 0
                         onClicked: {
                             mediaPlayer.updateMediaMetadata()
                             root.closeRequested()
@@ -312,10 +390,14 @@ Rectangle {
                         }
                         
                     }
+
+                    
+
                     Item { Layout.preferredWidth: 800 }
                     Button {
+                        id: leftButton
                         visible: episodeType == "MiddleEpisode" || episodeType == "FinalEpisode"
-                        focus: rowcontrols.currentIndex === 1 && visible
+                        //focus: rowcontrols.currentIndex === 1 && visible
                         onClicked: {
                             restartLoadingWindow()
                             root.lastEpisode()
@@ -341,9 +423,10 @@ Rectangle {
                         }
                     }
                     Button {
+                        id: rewindButton
                         onClicked: mediaPlayer.back30sec();
                         flat: true
-                        focus:  rowcontrols.currentIndex === 2
+                        //focus:  rowcontrols.currentIndex === 2
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         contentItem: VectorImage {
@@ -359,9 +442,10 @@ Rectangle {
                         }
                     }
                     Button {
+                        id: playpauseButton
                         onClicked: mediaPlayer.isPlaying ? mediaPlayer.pauseMedia() : mediaPlayer.playMedia(0)
                         flat: true
-                        focus:  rowcontrols.currentIndex === 3
+                        //focus:  rowcontrols.currentIndex === 3
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         padding: 0
@@ -382,9 +466,10 @@ Rectangle {
                         }
                     }
                     Button {
+                        id: ffButton
                         onClicked: mediaPlayer.forward30sec();
                         flat: true
-                        focus: rowcontrols.currentIndex === 4
+                        //focus: rowcontrols.currentIndex === 4
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         contentItem: VectorImage {
@@ -401,8 +486,9 @@ Rectangle {
                     }
                     
                     Button {
+                        id: nextButton
                         visible: episodeType == "MiddleEpisode" || episodeType == "FirstEpisode"
-                        focus:  rowcontrols.currentIndex === 5 && visible
+                        //focus:  rowcontrols.currentIndex === 5 && visible
                         onClicked: {
                             root.nextEpisode()
                             if (root.mediaMetadata !== undefined) {
@@ -429,8 +515,9 @@ Rectangle {
                     }
                     Item { Layout.preferredWidth: 24 }
                     Button {
+                        id: fullscreenButton
                         onClicked: mediaPlayer.setFullScreen(true)
-                        focus: rowcontrols.currentIndex === 6
+                        //focus: rowcontrols.currentIndex === 6
                         flat: true
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
@@ -610,7 +697,7 @@ Rectangle {
                             //border.width: 4
                         }
                         contentItem: Text {
-                            text: currentValue
+                            text: subtitleSelector.currentText
                             color: "white"         // Text color
                             verticalAlignment: Text.AlignVCenter
                             horizontalAlignment: Text.AlignLeft
