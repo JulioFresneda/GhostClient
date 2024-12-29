@@ -203,8 +203,8 @@ Item {
 
                 ItemDelegate {
                     Layout.fillWidth: true
-                    height: 0
-                    visible: navigator.selectedCollectionId !== ""
+                    //height: 0
+                    visible: true
 
                     background: Rectangle {
                         //
@@ -218,12 +218,12 @@ Item {
                         spacing: 0
                         Text {
                             text: " ←"
-                            color: colors.textSecondary
+                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : colors.black
                             font.pointSize: 16
                         }
                         Text {
                             text: "Back"
-                            color: colors.textSecondary
+                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : colors.black
                             font.pointSize: 14
                         }
                     }
@@ -1022,7 +1022,7 @@ Item {
         border.width: 5
         bottomLeftRadius: 0
         bottomRightRadius: 0
-        border.color: !sidebar.usingit && (cardMouseArea.containsMouse || focus) ? colors.green : colors.strongWhite
+        border.color: cardMouseArea.containsMouse || !sidebar.usingit && focus ? colors.green : colors.strongWhite
 
         //gradient: Gradient {
             //GradientStop { position: 0.0; color: colors.strongWhite }

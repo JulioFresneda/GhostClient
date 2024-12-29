@@ -3,6 +3,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import com.ghoststream 1.0
 
+/**
+ * Main application window for Ghost Stream.
+ * Sets up the UI structure, animations, and user interactions.
+ */
 ApplicationWindow {
     visible: true
     width: 1920
@@ -11,6 +15,9 @@ ApplicationWindow {
     title: "Ghost Stream"
     visibility: Window.FullScreen
 
+    /**
+     * Centralized color scheme for the application.
+     */
     QtObject {
         id: colors
         property string background: "#050505"
@@ -24,9 +31,16 @@ ApplicationWindow {
         property string superGreen: "#66f557"
     }
 
+    /**
+     * Manages user authentication and profiles.
+     */
     Medium {
         id: loginManager
     }
+
+    /**
+     * Splash screen animation loader.
+     */
     Loader {
         id: startAnimation
         anchors.fill: parent
@@ -40,6 +54,10 @@ ApplicationWindow {
             })
         }
     }
+
+    /**
+     * Fade-out animation for splash screen.
+     */
     NumberAnimation {
         id: splashFadeOut
         target: startAnimation
@@ -53,6 +71,9 @@ ApplicationWindow {
         }
     }
 
+    /**
+     * Loader for the main application content.
+     */
     Loader {
         id: appLoader
         anchors.fill: parent
@@ -64,11 +85,13 @@ ApplicationWindow {
             }
         }
         onLoaded: {
-            // Pass the token to the loaded item
             appLoader.item.token = loginManager.getToken();
         }
     }
 
+    /**
+     * Dialog for adding user profiles.
+     */
     AddProfileDialog {
         id: addProfileDialog
         onAddProfileClicked: {
@@ -76,23 +99,27 @@ ApplicationWindow {
         }   
     }
 
-    // Profile selection view
+    /**
+     * View for selecting user profiles.
+     */
     Rectangle {
         id: profileView
         visible: !appLoader.visible
         anchors.fill: parent
         color: "#121212"
 
-        // Logo section
+        /**
+         * Background image for the profile selection screen.
+         */
         Image {
             id: wallpaper
             source: "qrc:/media/wallpaper_login_1.png"
             anchors.fill: parent
         }
 
-        
-
-        // Profile grid container
+        /**
+         * Container for user profiles.
+         */
         Item {
             id: profileContainer
             anchors {
@@ -103,19 +130,16 @@ ApplicationWindow {
             }
             height: parent.height*1.61
 
-            
-
             Row {
                 id: profileRow
                 anchors.centerIn: parent
                 spacing: 40
-        
-                // Property to track current focus index
+
                 property int currentIndex: 0
-        
-                
-        
-                // Existing profiles
+
+                /**
+                 * Repeater for displaying user profiles.
+                 */
                 Repeater {
                     model: profileModel
                     delegate: Item {
@@ -123,10 +147,8 @@ ApplicationWindow {
                         width: 160
                         height: 160
 
-                        // Make item focusable
                         focus: index === profileRow.currentIndex
-                      
-                
+
                         Rectangle {
                             id: profileRect
                             width: 160
@@ -135,7 +157,6 @@ ApplicationWindow {
                             scale: index === profileRow.currentIndex || profileMouseArea.containsMouse ? 1.1 : 1.0
                             color: colors.strongWhite
 
-                            // Focus visual indicator
                             Rectangle {
                                 anchors.fill: parent
                                 radius: parent.radius
@@ -146,8 +167,6 @@ ApplicationWindow {
                                 }
                                 visible: index === profileRow.currentIndex || profileMouseArea.containsMouse
                             }
-
-                            
 
                             Image {
                                 id: profileImage
@@ -200,36 +219,17 @@ ApplicationWindow {
                                 }
                             }
                         }
-
-                        // Handle Enter/Return key press
-                        //Keys.onReturnPressed: loginManager.selectProfile(model.profileID)
-                        //Keys.onEnterPressed: loginManager.selectProfile(model.profileID)
-
-                        // Set focus when current index matches
-                        //onActiveFocusChanged: {
-                        //    if (activeFocus) {
-                        //        profileRow.currentIndex = index
-                        //    }
-                        //}
-
-                        //Component.onCompleted: {
-                        //    if (index === 0) {
-                        //        profileItem.forceActiveFocus()
-                        //    }
-                        //}
                     }
                 }
 
-                // Add profile button
+                /**
+                 * Button for adding new user profiles.
+                 */
                 Item {
                     id: addProfileItem
                     width: 160
                     height: 160
                     visible: profileModel.count < 5
-            
-                    // Make add button focusable
-                    //activeFocusOnTab: true
-                    ////KeyNavigation.left: profileRepeater.count > 0 ? profileRepeater.itemAt(profileRepeater.count - 1) : null
 
                     Rectangle {
                         id: addProfileRect
@@ -250,8 +250,6 @@ ApplicationWindow {
                             }
                             visible: profileRow.currentIndex === profileModel.count || addProfileMouseArea.containsMouse
                         }
-
-                        
 
                         Text {
                             text: "+"
@@ -294,15 +292,16 @@ ApplicationWindow {
                             horizontalCenter: addProfileRect.horizontalCenter
                         }
                     }
-
-                    
                 }
             }
-        
+
+            /**
+             * Key event handlers for navigating between profiles.
+             */
             Keys.onLeftPressed: {
                 if (profileRow.currentIndex > 0) {
                     profileRow.currentIndex--
-                    forceActiveFocus() // Ensure container retains focus
+                    forceActiveFocus()
                 }
             }
 
@@ -310,7 +309,7 @@ ApplicationWindow {
                 var maxIndex = profileModel.count + (profileModel.count < 5 ? 1 : 0) - 1
                 if (profileRow.currentIndex < maxIndex) {
                     profileRow.currentIndex++
-                    forceActiveFocus() // Ensure container retains focus
+                    forceActiveFocus()
                 }
             }
 
@@ -323,22 +322,28 @@ ApplicationWindow {
             }
 
             Component.onCompleted: {
-                profileContainer.forceActiveFocus() // Ensure focus starts at this container
+                profileContainer.forceActiveFocus()
             }
         }
     }
 
-    // Add Profile Dialog
-    
-
+    /**
+     * Data model for storing profile information.
+     */
     ListModel {
         id: profileModel
     }
 
+    /**
+     * Fetch user profiles on application load.
+     */
     Component.onCompleted: {
         loginManager.fetchUserProfile()
     }
 
+    /**
+     * Connections for handling profile-related signals.
+     */
     Connections {
         target: loginManager
         function onProfileDataFetched(profileData) {

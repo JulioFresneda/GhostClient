@@ -715,17 +715,7 @@ Rectangle {
         }
     }
 
-    // Space bar shortcut
-    Shortcut {
-        sequence: "Space"
-        onActivated: {
-            if (mediaPlayer.isPlaying) {
-                mediaPlayer.pauseMedia()
-            } else {
-                mediaPlayer.playMedia(0)
-            }
-        }
-    }
+    
 
     Component.onDestruction: {
         mediaPlayer.stop()

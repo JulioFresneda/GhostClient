@@ -10,13 +10,14 @@
 #include <ws2tcpip.h>
 #include <iostream>
 
-// TODO
-// - link to github small when navigating
-// - exit button
-// - any more visuals?
-// - testing and production
-//
-
+/**
+ * Resolves the given domain name to an IP address.
+ * If `localHost` is true, it will return "localhost" without performing a DNS lookup.
+ *
+ * @param domain The domain name to resolve.
+ * @param localHost If true, resolves to "localhost". Default is true.
+ * @return A QString containing the resolved IP address or an empty string on failure.
+ */
 QString resolveDomain(const QString& domain, bool localHost = true) {
     if (localHost) {
         return "localhost";
@@ -25,14 +26,14 @@ QString resolveDomain(const QString& domain, bool localHost = true) {
     dns.setType(QDnsLookup::A); // Query for IPv4 address
     dns.setName(domain);
 
-    // Use an event loop to wait for the DNS query to complete
+    // Event loop to wait for DNS query completion
     QEventLoop loop;
     QObject::connect(&dns, &QDnsLookup::finished, &loop, &QEventLoop::quit);
 
     dns.lookup();
     loop.exec(); // Block and wait for the query to finish
 
-    // Check if the lookup succeeded
+    // Handle lookup errors
     if (dns.error() != QDnsLookup::NoError) {
         std::cerr << "DNS Lookup error: " << dns.errorString().toStdString() << std::endl;
         return ""; // Return empty string on failure
@@ -48,33 +49,47 @@ QString resolveDomain(const QString& domain, bool localHost = true) {
     }
 }
 
-
-int main(int argc, char* argv[])
-{
+/**
+ * Main entry point for the application.
+ * Configures the Qt application environment, initializes QML types, and loads the main QML file.
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv An array of command-line arguments.
+ * @return The exit status of the application.
+ */
+int main(int argc, char* argv[]) {
 #if defined(Q_OS_WIN) && QT_VERSION_CHECK(5, 6, 0) <= QT_VERSION && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    // Enable high DPI scaling for Qt versions between 5.6 and 6.0 on Windows
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
-    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Round); // Ensure consistent scaling
+
+    // Ensure consistent scaling policy
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Round);
 
     QGuiApplication app(argc, argv);
+
+    // Set application style to "Fusion"
     QQuickStyle::setStyle("Fusion");
 
-    QGuiApplication::setAttribute(Qt::AA_Use96Dpi, true); // Treat FullHD (1920x1080) as baseline resolution
+    // Treat FullHD (1920x1080) as baseline resolution
+    QGuiApplication::setAttribute(Qt::AA_Use96Dpi, true);
     qputenv("QT_SCALE_FACTOR", "1.0"); // Set scale factor to 1.0
 
+    // Load configuration and resolve public IP address
     QSettings settings("./conf.ini", QSettings::IniFormat);
     settings.setValue("publicIP", resolveDomain("ghoststream.duckdns.org"));
     settings.sync();
 
-
-    // Register types with the correct template parameters
+    // Register custom QML types
     qmlRegisterType<Medium>("com.ghoststream", 1, 0, "Medium");
     qmlRegisterType<VLCPlayerHandler>("com.ghoststream", 1, 0, "VLCPlayerHandler");
-    //qmlRegisterType<MediaFilterHandler>("com.ghoststream", 1, 0, "MediaFilterHandler");
     qmlRegisterType<Navigator>("com.ghoststream", 1, 0, "Navigator");
 
+    // Initialize the QML application engine
     QQmlApplicationEngine engine;
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ghostclient/main.qml")));
+
+    // Exit if the QML engine failed to load the main file
     if (engine.rootObjects().isEmpty())
         return -1;
 
