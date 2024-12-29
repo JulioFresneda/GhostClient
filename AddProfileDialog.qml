@@ -4,41 +4,38 @@ import QtQuick.Layouts 1.15
 
 Dialog {
     id: addProfileDialog
-    //title: qsTr("Add Profile")
     modal: true
-    visible: false // Start hidden; call open() to display
+    visible: false
     width: 900
     height: 660
-    x: (parent.width  - width ) / 2
+    x: (parent.width - width) / 2
     y: (parent.height - height) / 2
-    dim: true         // Dims everything behind the dialog
-    //dimColor: "rgba(0, 0, 0, 0.6)" 
-    Overlay.modal: Rectangle {
-        color: "#80050505"  // Use whatever color/opacity you like
-    }
+    dim: true
+
+
     property var profileName: ""
-    property var pictureID: 1
+    property int pictureID: 1
 
     signal addProfileClicked()
 
     background: Rectangle {
-        // Change color here
         color: "#050505"
-        //border.color: "#e2e2e2"
-        
-        //radius: 6 // optional corner rounding
     }
-    
+
     contentItem: Column {
         spacing: 20
         padding: 12
         Layout.alignment: Qt.AlignVCenter
+
+        // Title
         Text {
             id: title
             font.pixelSize: 24
             text: "What is your ghost's name?"
             color: "#e2e2e2"
         }
+
+        // Text Field
         TextField {
             id: profileNameField
             Layout.preferredWidth: 300
@@ -46,49 +43,42 @@ Dialog {
             Layout.preferredHeight: 40
             placeholderText: qsTr("Enter profile name")
             font.pixelSize: 24
+            focus: true // Start with focus on the text field
+
+            Keys.onReturnPressed: {
+                imageGrid.forceActiveFocus()
+            }
         }
 
+        // GridView for profile images
         Rectangle {
-            // Change color here
             color: "#1E1E1E"
-            //border.color: "#e2e2e2"
-            //border.round: 4
             height: 450
             width: 860
             Layout.alignment: Qt.AlignVCenter
-            Layout.fillWidth: true
-            Layout.fillHeight: true 
-            anchors.margins: 10
             radius: 6
-        // A GridView showing 4 images from qrc:/media/ghosts/
+
             GridView {
-                
                 id: imageGrid
                 width: parent.width
-                Layout.alignment: Qt.AlignVCenter
                 height: parent.height
                 cellWidth: 140
                 cellHeight: 140
-                // We'll show 4 images: 1.png, 2.png, 3.png, 4.png
-                model: 36
-                //Layout.fillWidth: true
-                //Layout.fillHeight: true 
+                model: 36 // 36 images
                 clip: true
-                
-                    //border.width: 4
+                focus: false // Enable navigation focus
 
                 delegate: Item {
                     width: 120
                     height: 120
-
+                    focus: GridView.isCurrentItem
                     Rectangle {
-                        color: "transparent" 
+                        color: "transparent"
                         anchors.fill: parent
                         border.width: 4
-                        border.color: (index + 1) == pictureID ? "#419A38" : "#e2e2e2" 
-                        //radius: 8 // optional rounded corners
+                        border.color: (index + 1) == pictureID && imageGrid.focus  ? "#419A38" : "#e2e2e2"
                     }
-                    
+
                     Image {
                         anchors.margins: 4
                         anchors.fill: parent
@@ -99,16 +89,52 @@ Dialog {
                     }
 
                     MouseArea {
-                        id: profileMouseArea
+                        id: mouseArea
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            console.log("Selected image: " + (index + 1))
-                            pictureID = (index + 1)
-                            // You might store this “selected image” in a property
+                            addProfileDialog.pictureID = index + 1
+                            console.log("Selected image: " + addProfileDialog.pictureID)
+                            
                         }
                     }
+                    Keys.onReturnPressed: {
+                        console.log("Selected image: " + addProfileDialog.pictureID)
+                        rowbuttons.forceActiveFocus()
+                    }
+
+                    Keys.onRightPressed: {
+                        moveToNextItem(1)
+                        //console.log(sidebar.usingit)
+                    }
+                    Keys.onLeftPressed: {
+                        moveToPreviousItem(1)
+                    }
+
+                    Keys.onUpPressed: {
+                        moveToPreviousItem(6)
+                    }
+                    Keys.onDownPressed: {
+                        moveToNextItem(6)
+                    }
+
+                    function moveToNextItem(distance) {
+                        if (addProfileDialog.pictureID < imageGrid.count - distance) {
+                            addProfileDialog.pictureID += distance
+                            console.log("Moved to next item:", addProfileDialog.pictureID)
+                        }
+                    }
+
+                    function moveToPreviousItem(distance) {
+                        if (addProfileDialog.pictureID > distance - 1) {
+                            addProfileDialog.pictureID -= distance
+                            console.log("Moved to previous item:", addProfileDialog.pictureID)
+                        }
+                    }
+
                 }
+
+                
             }
         }
 
@@ -116,33 +142,56 @@ Dialog {
             Layout.fillHeight: true
         }
 
-        // Buttons to confirm or cancel
+        // Buttons
         Row {
             spacing: 10
             Layout.alignment: Qt.AlignVCenter
-
+            id: rowbuttons
+            property bool addselected: true
+            Keys.onReturnPressed: {
+                if(addselected){
+                    console.log("New profile name:", profileNameField.text)
+                    profileName = profileNameField.text
+                    addProfileClicked()
+                    addProfileDialog.close()
+                }
+                else {
+                    addProfileDialog.close()
+                    profileName = ""
+                    pictureID = 1
+                }
+            }
+            Keys.onLeftPressed: {
+                addselected = false
+            }
+            Keys.onRightPressed: {
+                addselected = true
+            }
             Button {
                 text: qsTr("Cancel")
+                //focus: !rowbuttons.addselected
                 onClicked: {
                     addProfileDialog.close()
                     profileName = ""
                     pictureID = 1
                 }
+                
                 font.pointSize: 16
                 background: Rectangle {
-                    // Button background color
                     color: "#050505"
-                    // Button border
-                    //border.color: "#e2e2e2"
-                    //border.width: 1
-                    //radius: 4  // optional corner rounding
+                    border.color: !rowbuttons.addselected ? "#419A38" : "#050505"
+                    border.width: 1
+                    radius: 4
                 }
             }
+
             Item {
-                width: 40    
+                width: 40
             }
+
             Button {
                 text: qsTr("Add Ghost")
+                //focus: rowbuttons.addselected
                 font.pointSize: 16
                 onClicked: {
                     console.log("New profile name:", profileNameField.text)
@@ -150,15 +199,20 @@ Dialog {
                     addProfileClicked()
                     addProfileDialog.close()
                 }
+                
                 horizontalPadding: 20
                 background: Rectangle {
                     color: "#050505"
-                    border.color: "#e2e2e2"
+                    border.color: rowbuttons.addselected && rowbuttons.focus ? "#419A38" : "#e2e2e2"
                     border.width: 1
                     radius: 4
                 }
             }
         }
+    }
 
+    Component.onCompleted: {
+        profileNameField.forceActiveFocus() // Start with focus on the text field
     }
 }
+
