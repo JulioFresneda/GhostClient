@@ -111,7 +111,7 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 24
-
+                property bool usingit: true
                 Keys.onUpPressed: {
                     var prev = navigator.getPreviousCategory()
                     navigator.currentCategory = prev != "" ? prev : navigator.currentCategory
@@ -123,8 +123,12 @@ Item {
                     navigator.selectedCollectionId = ""  
                 }
                 Keys.onRightPressed: {
+                    usingit = false
                     mediaGrid.forceActiveFocus()
+                    mediaGrid.moveToNextItem()
+                    
                 }
+                
                 Component.onCompleted: {
                     sidebar.forceActiveFocus() // Ensure focus starts at this container
                 }
@@ -762,19 +766,19 @@ Item {
                                     if (newX < ghost.x && !ghost.flipped) {
                                         ghost.flipped = true; // Flip left
                                         ghost.transform[0].xScale = -1
-                                        console.log("Flip to left")
+                                        //console.log("Flip to left")
                                     
                                     } else if (newX > ghost.x && ghost.flipped) {
                                         ghost.flipped = false; // Flip right
-                                        console.log("Flip to right")
+                                        //console.log("Flip to right")
                                         ghost.transform[0].xScale = 1
                                     }
 
                                     // Move to the new random position
                                     ghost.x = newX;
                                 
-                                    console.log("New ghost pos: " + ghost.x + " " + ghost.y)
-                                    console.log("jeje " + bgrectangle.y + " " + bgrectangle.height)
+                                    //console.log("New ghost pos: " + ghost.x + " " + ghost.y)
+                                    //console.log("jeje " + bgrectangle.y + " " + bgrectangle.height)
                                 }
                             }
                         }
@@ -813,7 +817,7 @@ Item {
                     cellWidth: 200
                     cellHeight: 300
                     model: navigator.filteredData
-                    focus: true
+                    focus: false
                     currentIndex: -1
                     delegate: MediaCard {
                         width: 180
@@ -830,43 +834,64 @@ Item {
                         mediaId: modelData.ID || ""
                         backupId: navigator.getCollectionId(modelData.ID)
                         property bool isCollection: modelData.collection_title ? true : false
-                    }
-                    Keys.onPressed: {
-                        if (event.key === Qt.Key_Right) {
+
+                        Keys.onReturnPressed: {
+                            if (navigator.selectedCollectionId) {
+                                console.log("Loading media from collection:", modelData.ID)
+                                currentMediaId = modelData.ID
+                                isPlayerVisible = true
+                            } else if (modelData.collection_title) {
+                                navigator.selectedCollectionId = modelData.ID
+                                selectedCollectionTitle = modelData.collection_title
+                                navigator.updateFilteredData()
+                            } 
+                            else {
+                                console.log("Loading standalone media:", modelData.ID)
+                                currentMediaId = modelData.ID
+                                isPlayerVisible = true
+                            }
+                        }
+                        Keys.onRightPressed: {
                             moveToNextItem()
-                        } else if (event.key === Qt.Key_Left) {
+                            //console.log(sidebar.usingit)
+                        }
+                        Keys.onLeftPressed: {
                             moveToPreviousItem()
-                        } else if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
-                            // LOAD MEDIA
-                        } else if (event.key === Qt.Key_Up){
-                            currentIndex = -1
+                        }
+                        Keys.onUpPressed: {
+                            sidebar.usingit = true
+                            mediaGrid.currentIndex = -1
                             sidebar.forceActiveFocus()
                             var prev = navigator.getPreviousCategory()
                             navigator.currentCategory = prev != "" ? prev : navigator.currentCategory
                             navigator.selectedCollectionId = "" 
-                        } else if (event.key === Qt.Key_Down){
-                            currentIndex = -1
+                            
+                        }
+                        Keys.onDownPressed: {
+                            sidebar.usingit = true
+                            mediaGrid.currentIndex = -1
                             sidebar.forceActiveFocus()
                             var next = navigator.getNextCategory()
                             navigator.currentCategory = next != "" ? next : navigator.currentCategory
                             navigator.selectedCollectionId = "" 
-                        }
                             
-                    }
+                        }
 
-                    function moveToNextItem() {
-                        if (currentIndex < count - 1) {
-                            currentIndex++
-                            console.log("Moved to next item:", currentIndex)
+                        function moveToNextItem() {
+                            if (mediaGrid.currentIndex < mediaGrid.count - 1) {
+                                mediaGrid.currentIndex++
+                                console.log("Moved to next item:", mediaGrid.currentIndex)
+                            }
+                        }
+
+                        function moveToPreviousItem() {
+                            if (mediaGrid.currentIndex > 0) {
+                                mediaGrid.currentIndex--
+                                console.log("Moved to previous item:", mediaGrid.currentIndex)
+                            }
                         }
                     }
-
-                    function moveToPreviousItem() {
-                        if (currentIndex > 0) {
-                            currentIndex--
-                            console.log("Moved to previous item:", currentIndex)
-                        }
-                    }
+                    
                 }
 
                 
@@ -990,7 +1015,7 @@ Item {
         border.width: 5
         bottomLeftRadius: 0
         bottomRightRadius: 0
-        border.color: cardMouseArea.containsMouse || focus ? colors.green : colors.strongWhite
+        border.color: !sidebar.usingit && (cardMouseArea.containsMouse || focus) ? colors.green : colors.strongWhite
 
         //gradient: Gradient {
             //GradientStop { position: 0.0; color: colors.strongWhite }

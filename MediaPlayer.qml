@@ -283,12 +283,15 @@ Rectangle {
 
                 // Controls
                 RowLayout {
-                    
+                    id: rowcontrols
+                    property int currentIndex: 3
+                    //focus: true
                     Layout.fillWidth: true
                     //spacing: 16
                     Layout.alignment: Qt.AlignVCenter
                     Button {
                         //text: "←"
+                        focus: rowcontrols.currentIndex === 0
                         onClicked: {
                             mediaPlayer.updateMediaMetadata()
                             root.closeRequested()
@@ -299,7 +302,7 @@ Rectangle {
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/left_hover.svg" : "qrc:/media/buttons/left.svg"
+                            source: parent.hovered || rowcontrols.currentIndex === 0 ? "qrc:/media/buttons/left_hover.svg" : "qrc:/media/buttons/left.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
@@ -307,10 +310,12 @@ Rectangle {
                         background: Rectangle {
                             color: "transparent"
                         }
+                        
                     }
                     Item { Layout.preferredWidth: 800 }
                     Button {
                         visible: episodeType == "MiddleEpisode" || episodeType == "FinalEpisode"
+                        focus: rowcontrols.currentIndex === 1 && visible
                         onClicked: {
                             restartLoadingWindow()
                             root.lastEpisode()
@@ -326,7 +331,7 @@ Rectangle {
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/lastone_hover.svg" : "qrc:/media/buttons/lastone.svg"
+                            source: parent.hovered || rowcontrols.currentIndex === 1 ? "qrc:/media/buttons/lastone_hover.svg" : "qrc:/media/buttons/lastone.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
@@ -338,12 +343,13 @@ Rectangle {
                     Button {
                         onClicked: mediaPlayer.back30sec();
                         flat: true
+                        focus:  rowcontrols.currentIndex === 2
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/back_hover.svg" : "qrc:/media/buttons/back.svg"
+                            source: parent.hovered ||  rowcontrols.currentIndex === 2 ? "qrc:/media/buttons/back_hover.svg" : "qrc:/media/buttons/back.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
@@ -355,6 +361,7 @@ Rectangle {
                     Button {
                         onClicked: mediaPlayer.isPlaying ? mediaPlayer.pauseMedia() : mediaPlayer.playMedia(0)
                         flat: true
+                        focus:  rowcontrols.currentIndex === 3
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         padding: 0
@@ -366,7 +373,7 @@ Rectangle {
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered
+                            source: parent.hovered ||  rowcontrols.currentIndex === 3
                                 ? (mediaPlayer.isPlaying ? "qrc:/media/buttons/pause_hover.svg" : "qrc:/media/buttons/play_hover.svg")
                                 : (mediaPlayer.isPlaying ? "qrc:/media/buttons/play.svg" : "qrc:/media/buttons/pause.svg")
                             anchors.fill: parent // Make the VectorImage fill the Button
@@ -377,12 +384,13 @@ Rectangle {
                     Button {
                         onClicked: mediaPlayer.forward30sec();
                         flat: true
+                        focus: rowcontrols.currentIndex === 4
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
+                            source: parent.hovered || rowcontrols.currentIndex === 4 ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
@@ -394,6 +402,7 @@ Rectangle {
                     
                     Button {
                         visible: episodeType == "MiddleEpisode" || episodeType == "FirstEpisode"
+                        focus:  rowcontrols.currentIndex === 5 && visible
                         onClicked: {
                             root.nextEpisode()
                             if (root.mediaMetadata !== undefined) {
@@ -409,7 +418,7 @@ Rectangle {
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/next_hover.svg" : "qrc:/media/buttons/next.svg"
+                            source: parent.hovered || rowcontrols.currentIndex === 5 ? "qrc:/media/buttons/next_hover.svg" : "qrc:/media/buttons/next.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
@@ -421,13 +430,14 @@ Rectangle {
                     Item { Layout.preferredWidth: 24 }
                     Button {
                         onClicked: mediaPlayer.setFullScreen(true)
+                        focus: rowcontrols.currentIndex === 6
                         flat: true
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
                         contentItem: VectorImage {
                             //height: 6
                             //width: 6
-                            source: parent.hovered ? "qrc:/media/buttons/fullscreen_hover.svg" : "qrc:/media/buttons/fullscreen.svg"
+                            source: parent.hovered || rowcontrols.currentIndex === 6 ? "qrc:/media/buttons/fullscreen_hover.svg" : "qrc:/media/buttons/fullscreen.svg"
                             anchors.fill: parent // Make the VectorImage fill the Button
                             preferredRendererType: VectorImage.CurveRenderer
                             
