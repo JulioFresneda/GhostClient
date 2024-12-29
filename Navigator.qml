@@ -126,7 +126,14 @@ Item {
                     usingit = false
                     mediaGrid.forceActiveFocus()
                     mediaGrid.moveToNextItem()
-                    
+                }
+                Keys.onBackPressed: {
+                    if(navigator.selectedCollectionId == ""){
+                        Qt.quit()
+                    }
+                    else {
+                        navigator.selectedCollectionId = ""
+                    }   
                 }
                 
                 Component.onCompleted: {
@@ -202,9 +209,9 @@ Item {
                     background: Rectangle {
                         //
                         color: "black"
-                        radius: 8
-                        border.width: 4
-                        border.color: colors.strongWhite
+                        //radius: 8
+                        //border.width: 4
+                        //border.color: colors.strongWhite
                     }
 
                     contentItem: RowLayout {
