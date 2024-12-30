@@ -13,12 +13,24 @@
 #include <windows.h>
 #endif
 
+/**
+ * @brief Callback function for VLC logging system
+ * @param data User data pointer passed to the callback
+ * @param level Severity level of the log message
+ * @param ctx VLC log context
+ * @param fmt Format string for the log message
+ * @param args Variable argument list containing log message parameters
+ */
 void vlcLogCallback(void* data, int level, const libvlc_log_t* ctx, const char* fmt, va_list args) {
     char buf[1024];
     vsnprintf(buf, sizeof(buf), fmt, args);
     qDebug() << "VLC Log [" << level << "]:" << buf;
 }
 
+/**
+ * @brief Constructs the VLCPlayerHandler with initial configuration
+ * @param parent Parent QObject for memory management
+ */
 VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     : QObject(parent)
     , m_vlcInstance(nullptr)
@@ -27,25 +39,19 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     , m_isPlaying(false)
     , m_videoSink(nullptr)
 {
+    // Initialize configuration from settings file
     QSettings settings("./conf.ini", QSettings::IniFormat);
     m_token = settings.value("token").toString();
     m_profileId = settings.value("selectedProfileID").toString();
     QString port = settings.value("port").toString();
     m_url = "http://" + settings.value("publicIP").toString() + ":" + port;
+
+    // VLC command line arguments
     const char* args[] = {
-        //"--no-video-title-show",
-        //"--clock-jitter=0",
-        //"--no-mouse-events",
-        //"--input-fast-seek",
-        //"--network-caching=1000",
-        //"--adaptive-maxwidth=1920",
-        //"--verbose=0",
         "--quiet",
-        //"--subpicture-height=3000"
-        //"--file-logging",             // Enable file logging
-        //"--logfile=C:\\Users\\julio\\Documents\\vlc-log.txt"
     };
 
+    // Initialize VLC instance
     m_vlcInstance = libvlc_new(sizeof(args) / sizeof(*args), args);
     libvlc_set_log_verbosity(m_vlcInstance, 2);
     if (!m_vlcInstance) {
@@ -53,6 +59,7 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
         return;
     }
 
+    // Create media player instance
     m_mediaPlayer = libvlc_media_player_new(m_vlcInstance);
     if (!m_mediaPlayer) {
         qDebug() << "Failed to create media player";
@@ -61,23 +68,31 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
         return;
     }
 
+    // Initialize position update timer
     m_positionTimer = new QTimer(this);
     connect(m_positionTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaInfo);
     m_positionTimer->setInterval(100);
 
+    // Initialize metadata update timer
     m_metadataTimer = new QTimer(this);
     connect(m_metadataTimer, &QTimer::timeout, this, &VLCPlayerHandler::updateMediaMetadataOnServer);
     m_metadataTimer->setInterval(30000);
 
-
+    // Set up VLC logging
     libvlc_log_set(m_vlcInstance, vlcLogCallback, nullptr);
 }
 
+/**
+ * @brief Destructor that ensures proper cleanup of VLC resources
+ */
 VLCPlayerHandler::~VLCPlayerHandler() {
     cleanupVLC();
 }
 
-
+/**
+ * @brief Verifies that VLC components are properly initialized
+ * @return bool True if setup is valid, false otherwise
+ */
 bool VLCPlayerHandler::verifyVLCSetup() {
     if (!m_vlcInstance || !m_mediaPlayer) {
         QString error = "VLC setup verification failed: ";
@@ -91,13 +106,15 @@ bool VLCPlayerHandler::verifyVLCSetup() {
     return true;
 }
 
+/**
+ * @brief Sets the playback position of the media
+ * @param position Desired position in milliseconds
+ */
 void VLCPlayerHandler::setPosition(qint64 position) {
     if (!m_mediaPlayer) return;
 
-    // Get media duration
+    // Calculate position percentage for DASH streaming
     libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
-
-    // For DASH streaming, we need to use precise seeking
     float percentage = static_cast<float>(position) / duration;
 
     libvlc_media_player_set_position(m_mediaPlayer, percentage);
@@ -105,85 +122,99 @@ void VLCPlayerHandler::setPosition(qint64 position) {
     qDebug() << "Seeking to position:" << position
         << "Duration:" << duration
         << "Percentage:" << percentage;
-
-    //emit positionChanged(position);
 }
 
+/**
+ * @brief Starts media playback from specified position
+ * @param percentage_watched Starting position as percentage (0.0 - 1.0)
+ */
 void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
     if (m_mediaPlayer) {
         libvlc_media_player_play(m_mediaPlayer);
+
+        // Wait for player to enter playing or paused state
         libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
         while (!(state == libvlc_Playing || state == libvlc_Paused)) {
-            state = libvlc_media_player_get_state(m_mediaPlayer);;
+            state = libvlc_media_player_get_state(m_mediaPlayer);
         }
+
         m_isPlaying = true;
+
+        // Set initial position if specified
         if (percentage_watched > 0.0) {
             libvlc_media_player_set_position(m_mediaPlayer, percentage_watched);
             libvlc_time_t currentTime = libvlc_media_player_get_time(m_mediaPlayer);
-            libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
-            float position = libvlc_media_player_get_position(m_mediaPlayer);
             emit positionChanged(currentTime);
         }
-        while (!(state == libvlc_Playing || state == libvlc_Paused)) {
-            state = libvlc_media_player_get_state(m_mediaPlayer);;
-        }
-        //m_isPlaying = true;
-        m_positionTimer->start(); // Start the timer when playing
+
+        // Start timers and notify state change
+        m_positionTimer->start();
         m_metadataTimer->start();
         emit playingStateChanged(true);
     }
 }
 
+/**
+ * @brief Pauses media playback
+ */
 void VLCPlayerHandler::pauseMedia() {
     if (m_mediaPlayer) {
         libvlc_media_player_pause(m_mediaPlayer);
         m_isPlaying = false;
-        m_positionTimer->stop(); // Stop the timer when paused
+        m_positionTimer->stop();
         emit playingStateChanged(false);
-
-        // Emit one final position update
         emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
     }
 }
 
+/**
+ * @brief Stops media playback and closes video window
+ */
 void VLCPlayerHandler::stop() {
     if (m_mediaPlayer) {
         libvlc_media_player_stop(m_mediaPlayer);
         m_isPlaying = false;
-        m_positionTimer->stop(); // Stop the timer when stopped
+        m_positionTimer->stop();
 
+        // Clean up video window
         if (m_vlcWindow) {
-            m_vlcWindow->close(); // Close the window and remove it from the screen
-            delete m_vlcWindow;   // Free the memory used by the window
-            m_vlcWindow = nullptr; // Prevent dangling pointers
+            m_vlcWindow->close();
+            delete m_vlcWindow;
+            m_vlcWindow = nullptr;
         }
 
         emit playingStateChanged(false);
-
-        // Reset position to 0
         emit positionChanged(0);
     }
 }
 
+/**
+ * @brief Advances playback position by 30 seconds
+ */
 void VLCPlayerHandler::forward30sec() {
     if (m_mediaPlayer) {
         libvlc_time_t current_time = libvlc_media_player_get_time(m_mediaPlayer);
         libvlc_time_t new_time = current_time + 30000;
         libvlc_media_player_set_time(m_mediaPlayer, new_time);
-        // Emit one final position update
         emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
     }
 }
+
+/**
+ * @brief Rewinds playback position by 30 seconds
+ */
 void VLCPlayerHandler::back30sec() {
     if (m_mediaPlayer) {
         libvlc_time_t current_time = libvlc_media_player_get_time(m_mediaPlayer);
         libvlc_time_t new_time = current_time - 30000;
         libvlc_media_player_set_time(m_mediaPlayer, new_time);
-        // Emit one final position update
         emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
     }
 }
 
+/**
+ * @brief Updates media playback information and emits signals
+ */
 void VLCPlayerHandler::updateMediaInfo() {
     if (!m_mediaPlayer) return;
 
@@ -193,15 +224,8 @@ void VLCPlayerHandler::updateMediaInfo() {
         libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
         float position = libvlc_media_player_get_position(m_mediaPlayer);
 
-        //qDebug() << "Media Info - Time:" << currentTime
-        //    << "Duration:" << duration
-        //    << "Position:" << position;
-
         if (currentTime >= 0 && duration > 0) {
             emit positionChanged(currentTime);
-
-            
-            
         }
     }
     else if (state == libvlc_Ended) {
@@ -210,40 +234,45 @@ void VLCPlayerHandler::updateMediaInfo() {
     }
 }
 
+/**
+ * @brief Triggers an immediate metadata update
+ */
 void VLCPlayerHandler::updateMediaMetadata() {
     updateMediaMetadataOnServer();
 }
 
+/**
+ * @brief Sends current media playback metadata to the server
+ */
 void VLCPlayerHandler::updateMediaMetadataOnServer() {
     if (!m_mediaPlayer) return;
 
+    // Prepare network request
     QUrl url(m_url + "/update_media_metadata");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", "Bearer " + m_token.toUtf8());
 
-    // Create the JSON payload
+    // Create metadata payload
     QJsonObject jsonPayload;
-
     jsonPayload["profileID"] = m_profileId;
     jsonPayload["mediaID"] = m_currentMediaId;
+
+    // Calculate position based on playback state
     libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
-    float position = 1.0;
-    if (state != libvlc_Ended) {
-        position = libvlc_media_player_get_position(m_mediaPlayer);
-    }
-    
+    float position = (state != libvlc_Ended) ?
+        libvlc_media_player_get_position(m_mediaPlayer) : 1.0;
+
     jsonPayload["percentageWatched"] = QString::number(position, 'f', 3);
     jsonPayload["languageChosen"] = m_currentAudioText;
-    jsonPayload["subtitlesChosen"] = m_currentSubtitlesText;  // Default subtitles
+    jsonPayload["subtitlesChosen"] = m_currentSubtitlesText;
 
+    // Send update request
     QJsonDocument doc(jsonPayload);
     QByteArray jsonData = doc.toJson();
-
-    // Send the POST request
     QNetworkReply* reply = m_networkManager.post(request, jsonData);
 
-    // Handle the response
+    // Handle response
     connect(reply, &QNetworkReply::finished, this, [reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             qDebug() << "Successfully updated media metadata";
@@ -255,6 +284,9 @@ void VLCPlayerHandler::updateMediaMetadataOnServer() {
         });
 }
 
+/**
+ * @brief Cleans up VLC resources
+ */
 void VLCPlayerHandler::cleanupVLC() {
     if (m_media) {
         libvlc_media_release(m_media);
@@ -267,26 +299,50 @@ void VLCPlayerHandler::cleanupVLC() {
     }
 }
 
+/**
+ * @brief Returns the total duration of the current media
+ * @return qint64 Duration in milliseconds
+ */
 qint64 VLCPlayerHandler::duration() const {
     return m_mediaPlayer ? (qint64)libvlc_media_player_get_length(m_mediaPlayer) : 0;
 }
 
+/**
+ * @brief Returns the current playback position
+ * @return qint64 Position in milliseconds
+ */
 qint64 VLCPlayerHandler::position() const {
     return m_mediaPlayer ? (qint64)libvlc_media_player_get_time(m_mediaPlayer) : 0;
 }
 
+/**
+ * @brief Returns the current playing state
+ * @return bool True if media is playing
+ */
 bool VLCPlayerHandler::isPlaying() const {
     return m_isPlaying;
 }
 
+/**
+ * @brief Sets the audio volume
+ * @param volume Volume level (0-100)
+ */
 void VLCPlayerHandler::setVolume(int volume) {
     libvlc_audio_set_volume(m_mediaPlayer, volume);
 }
 
+/**
+ * @brief Returns the current video sink
+ * @return QVideoSink* Pointer to the video sink
+ */
 QVideoSink* VLCPlayerHandler::videoSink() const {
     return m_videoSink;
 }
 
+/**
+ * @brief Sets up the video sink and attaches video output
+ * @param sink Pointer to the QVideoSink to use
+ */
 void VLCPlayerHandler::setVideoSink(QVideoSink* sink) {
     if (m_videoSink == sink)
         return;
@@ -304,6 +360,7 @@ void VLCPlayerHandler::setVideoSink(QVideoSink* sink) {
     if (!quickVideoOutput || !quickVideoOutput->window())
         return;
 
+    // Handle window visibility changes
     if (!quickVideoOutput->window()->isVisible()) {
         QMetaObject::Connection* connection = new QMetaObject::Connection;
         *connection = connect(quickVideoOutput->window(), &QWindow::visibleChanged, this,
@@ -322,35 +379,35 @@ void VLCPlayerHandler::setVideoSink(QVideoSink* sink) {
     emit videoSinkChanged();
 }
 
-// In your VLCPlayerHandler class
+/**
+ * @brief Attaches video output to a QQuickItem
+ * @param videoOutput The QQuickItem to attach to
+ */
 void VLCPlayerHandler::attachVideoOutput(QQuickItem* videoOutput) {
     if (!videoOutput || !videoOutput->window())
         return;
 
-    // Create a child window that will host the VLC content
+    // Create and configure VLC window
     m_vlcWindow = new QWindow(videoOutput->window());
-
-    // Get the main window's size and global position
     mainWindow = videoOutput->window();
     QRect mainRect = mainWindow->geometry();
     QPointF pos = mainWindow->position();
 
-    // Set initial geometry to full size minus 160 pixels height
+    // Calculate window dimensions
     int adjustedHeight = mainRect.height() - 160;
     if (adjustedHeight < 0) {
         qWarning() << "Adjusted height is negative, setting to minimum height of 10.";
-        adjustedHeight = 10; // Prevent negative or zero height
+        adjustedHeight = 10;
     }
 
-    // Set the child window's geometry
+    // Set up window properties
     m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
     m_vlcWindow->setFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     m_vlcWindow->show();
 
     QCoreApplication::instance()->installEventFilter(this);
 
-
-    // Set VLC to render to this child window
+    // Platform-specific window handle setup
 #ifdef Q_OS_WIN
     WId handle = m_vlcWindow->winId();
     if (handle) {
@@ -362,112 +419,97 @@ void VLCPlayerHandler::attachVideoOutput(QQuickItem* videoOutput) {
     libvlc_media_player_set_nsobject(m_mediaPlayer, (void*)m_vlcWindow->winId());
 #endif
 
-    libvlc_video_set_scale(m_mediaPlayer, 0); // Disable scaling; let geometry control rendering
-
-    
+    libvlc_video_set_scale(m_mediaPlayer, 0);
 }
 
+/**
+ * @brief Event filter for handling keyboard events in fullscreen mode
+ * @param obj Object that triggered the event
+ * @param event The event to process
+ * @return bool True if event was handled, false otherwise
+ */
 bool VLCPlayerHandler::eventFilter(QObject* obj, QEvent* event) {
-    // Only proceed if we're in full-screen mode
     if (fullScreen) {
-        // Handle key press events
         if (event->type() == QEvent::KeyPress) {
             QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
             if (keyEvent->key() == Qt::Key_Escape) {
-                // Exit full-screen mode when the Escape key is pressed
                 setFullScreen(false);
-                return true; // Event is handled
+                return true;
             }
         }
-        
     }
-
-    // Pass the event on if it's not handled here
     return QObject::eventFilter(obj, event);
 }
 
-
-
-
-
+/**
+ * @brief Toggles fullscreen mode for the video window
+ * @param setFullScreen True to enter fullscreen, false to exit
+ */
 void VLCPlayerHandler::setFullScreen(bool setFullScreen) {
     if (!m_vlcWindow)
         return;
-    fullScreen = setFullScreen;
-    if (fullScreen) {
-        // Set the child window to full screen
-        QRect mainRect = mainWindow->geometry();
-        int adjustedHeight = mainRect.height();
 
-        m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
+    fullScreen = setFullScreen;
+    QRect mainRect = mainWindow->geometry();
+
+    if (fullScreen) {
+        m_vlcWindow->setGeometry(0, 0, mainRect.width(), mainRect.height());
     }
     else {
-        // Set the child window back to original size
-        QRect mainRect = mainWindow->geometry();
-        int adjustedHeight = mainRect.height()-160;
-
-        m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
+        m_vlcWindow->setGeometry(0, 0, mainRect.width(), mainRect.height() - 160);
     }
 
     m_vlcWindow->show();
 }
 
-
-
-
-// In VLCPlayerHandler.cpp:
+/**
+ * @brief Loads and initializes media for playback
+ * @param mediaId Unique identifier for the media
+ * @param mediaMetadata Additional metadata for the media
+ */
 void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata) {
     if (!verifyVLCSetup()) {
         return;
     }
+
     float percentage_watched = 0;
     if (!mediaMetadata.isEmpty()) {
         percentage_watched = mediaMetadata.value("percentage_watched").toFloat();
     }
     fullScreen = false;
-    
     m_currentMediaId = mediaId;
     m_subtitleTracks.clear();
 
-    
-
+    // Clean up existing media
     if (m_media) {
         libvlc_media_release(m_media);
         m_media = nullptr;
     }
 
-    QString baseUrl = QString(m_url + "/media/%1/manifest")
-        .arg(mediaId);
-
-
+    // Create media URL and initialize
+    QString baseUrl = QString(m_url + "/media/%1/manifest").arg(mediaId);
     QByteArray urlBytes = baseUrl.toUtf8();
     m_media = libvlc_media_new_location(m_vlcInstance, urlBytes.constData());
 
     if (m_media) {
+        // Set media options
         libvlc_media_add_option(m_media, ":network-caching=1000");
         libvlc_media_add_option(m_media, ":http-reconnect");
-        //libvlc_media_add_option(m_media, ":demux=adaptive");
         libvlc_media_add_option(m_media, ":adaptive-formats=dash");
-
-        
 
         libvlc_media_player_set_media(m_mediaPlayer, m_media);
 
+        // Initialize subtitles and audio
         tryDownloadSubtitles(mediaId);
-        
         playMedia(percentage_watched);
-
-        
         loadSubtitleTracks(mediaMetadata.value("subtitles_chosen").toString());
         loadAudioTracks(mediaMetadata.value("language_chosen").toString());
-        
+
+        // Emit signals for UI updates
         emit subtitleTracksChanged();
         emit mediaLoaded();
         libvlc_time_t duration = libvlc_media_player_get_length(m_mediaPlayer);
         emit durationChanged(duration);
-
-
-
     }
     else {
         qDebug() << "Failed to create media";
@@ -475,27 +517,26 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
     }
 }
 
-
-
+/**
+ * @brief Downloads and adds subtitle tracks for the media
+ * @param mediaId ID of the media to download subtitles for
+ * @return bool True if subtitles were successfully downloaded
+ */
 bool VLCPlayerHandler::tryDownloadSubtitles(const QString& mediaId) {
-
     QList<QString> languages;
     languages.append("es");
     languages.append("en");
 
-    
-
     for (const QString& language : languages) {
         QUrl url(QString(m_url + "/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
 
-        // Check if the URL exists and returns 200
+        // Verify subtitle availability
         QNetworkAccessManager manager;
         QNetworkRequest request(url);
         QEventLoop loop;
-
         QNetworkReply* reply = manager.get(request);
         QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec(); // Wait for the reply to finish
+        loop.exec();
 
         int httpStatusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (reply->error() != QNetworkReply::NoError || httpStatusCode != 200) {
@@ -503,31 +544,24 @@ bool VLCPlayerHandler::tryDownloadSubtitles(const QString& mediaId) {
             reply->deleteLater();
             break;
         }
-
         reply->deleteLater();
 
+        // Add subtitle track to media player
         if (m_mediaPlayer) {
-            // Store subtitle information
             QByteArray urlBytes = url.toString().toUtf8();
             const char* charurl = urlBytes.constData();
-
             qDebug() << charurl;
-            libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
+
             int result = libvlc_media_player_add_slave(
                 m_mediaPlayer,
                 libvlc_media_slave_type_subtitle,
                 charurl,
                 false
             );
-            qDebug() << "Result of adding subtitle:" << result;
 
-            if (result == 0) {
-                qDebug() << "Added subtitle track:" << language;
-                
-            }
-            else {
+            qDebug() << "Result of adding subtitle:" << result;
+            if (result != 0) {
                 qWarning() << "Failed to add subtitle track:" << language << "Error code:" << result;
-                //return false;
             }
         }
         else {
@@ -536,9 +570,12 @@ bool VLCPlayerHandler::tryDownloadSubtitles(const QString& mediaId) {
         }
     }
     return true;
-    
 }
 
+/**
+ * @brief Loads and initializes subtitle tracks
+ * @param subtitles_chosen Previously selected subtitle track
+ */
 void VLCPlayerHandler::loadSubtitleTracks(QString subtitles_chosen) {
     m_subtitleTracks.clear();
 
@@ -547,19 +584,23 @@ void VLCPlayerHandler::loadSubtitleTracks(QString subtitles_chosen) {
     m_currentSubtitlesId = libvlc_video_get_spu(m_mediaPlayer);
     int metadataSubtitleId = m_currentSubtitlesId;
 
+    // Get subtitle track descriptions
     libvlc_track_description_t* tracks = libvlc_video_get_spu_description(m_mediaPlayer);
     libvlc_track_description_t* currentTrack = tracks;
 
+    // Process each subtitle track
     while (currentTrack) {
         QVariantMap trackInfo;
         trackInfo["id"] = currentTrack->i_id;
         trackInfo["name"] = QString::fromUtf8(currentTrack->psz_name);
+
         if (trackInfo["id"] == m_currentSubtitlesId) {
             m_currentSubtitlesText = trackInfo["name"].toString();
         }
         else if (trackInfo["name"] == subtitles_chosen) {
             metadataSubtitleId = trackInfo["id"].toInt();
         }
+
         if (trackInfo["id"] != -1) {
             m_subtitleTracks.append(trackInfo);
         }
@@ -570,14 +611,20 @@ void VLCPlayerHandler::loadSubtitleTracks(QString subtitles_chosen) {
     if (tracks) {
         libvlc_track_description_list_release(tracks);
     }
+
+    // Set subtitle track if different from current
     if (metadataSubtitleId != m_currentSubtitlesId) {
         setSubtitleTrack(metadataSubtitleId);
     }
+
     reorderListById(m_subtitleTracks, m_currentSubtitlesId);
     emit subtitleTracksChanged();
-
 }
 
+/**
+ * @brief Sets the active subtitle track
+ * @param trackId ID of the subtitle track to activate
+ */
 void VLCPlayerHandler::setSubtitleTrack(int trackId) {
     if (!m_mediaPlayer) return;
 
@@ -586,23 +633,37 @@ void VLCPlayerHandler::setSubtitleTrack(int trackId) {
     updateSubtitleSelected();
 }
 
+/**
+ * @brief Disables subtitles
+ */
 void VLCPlayerHandler::disableSubtitles() {
     if (m_mediaPlayer) {
         libvlc_video_set_spu(m_mediaPlayer, -1);
     }
 }
 
+/**
+ * @brief Returns the list of available subtitle tracks
+ * @return QVariantList List of subtitle track information
+ */
 QVariantList VLCPlayerHandler::subtitleTracks() const {
     return m_subtitleTracks;
 }
 
-
+/**
+ * @brief Returns the list of available audio tracks
+ * @return QVariantList List of audio track information
+ */
 QVariantList VLCPlayerHandler::audioTracks() const {
     return m_audioTracks;
 }
 
+/**
+ * @brief Reorders a track list to put selected track first
+ * @param list List to reorder
+ * @param selectedTrackId ID of the track to move to front
+ */
 void VLCPlayerHandler::reorderListById(QVariantList& list, int selectedTrackId) {
-    // Find the index of the QVariantMap with the given "id"
     int targetIndex = -1;
     for (int i = 0; i < list.size(); ++i) {
         QVariantMap map = list[i].toMap();
@@ -612,13 +673,15 @@ void VLCPlayerHandler::reorderListById(QVariantList& list, int selectedTrackId) 
         }
     }
 
-    // If the target was found, move it to the front
     if (targetIndex != -1) {
-        QVariant targetMap = list.takeAt(targetIndex); // Remove from original position
-        list.prepend(targetMap); // Add to the front
+        QVariant targetMap = list.takeAt(targetIndex);
+        list.prepend(targetMap);
     }
 }
 
+/**
+ * @brief Updates the currently selected audio track information
+ */
 void VLCPlayerHandler::updateAudioSelected() {
     m_currentAudioId = libvlc_audio_get_track(m_mediaPlayer);
 
@@ -626,7 +689,6 @@ void VLCPlayerHandler::updateAudioSelected() {
     libvlc_track_description_t* currentTrack = tracks;
 
     while (currentTrack) {
-
         if (currentTrack->i_id == m_currentAudioId) {
             m_currentAudioText = QString::fromUtf8(currentTrack->psz_name);
         }
@@ -638,6 +700,9 @@ void VLCPlayerHandler::updateAudioSelected() {
     }
 }
 
+/**
+ * @brief Updates the currently selected subtitle track information
+ */
 void VLCPlayerHandler::updateSubtitleSelected() {
     m_currentSubtitlesId = libvlc_video_get_spu(m_mediaPlayer);
 
@@ -645,7 +710,6 @@ void VLCPlayerHandler::updateSubtitleSelected() {
     libvlc_track_description_t* currentTrack = tracks;
 
     while (currentTrack) {
-
         if (currentTrack->i_id == m_currentSubtitlesId) {
             m_currentSubtitlesText = QString::fromUtf8(currentTrack->psz_name);
         }
@@ -657,6 +721,10 @@ void VLCPlayerHandler::updateSubtitleSelected() {
     }
 }
 
+/**
+ * @brief Loads and initializes audio tracks
+ * @param languageChosen Previously selected audio language
+ */
 void VLCPlayerHandler::loadAudioTracks(QString languageChosen) {
     m_audioTracks.clear();
 
@@ -672,31 +740,37 @@ void VLCPlayerHandler::loadAudioTracks(QString languageChosen) {
         QVariantMap trackInfo;
         trackInfo["id"] = currentTrack->i_id;
         trackInfo["name"] = QString::fromUtf8(currentTrack->psz_name);
+
         if (trackInfo["id"] == m_currentAudioId) {
             m_currentAudioText = trackInfo["name"].toString();
         }
         else if (trackInfo["name"] == languageChosen) {
             metadataAudioId = trackInfo["id"].toInt();
         }
+
         if (trackInfo["id"] != -1) {
             m_audioTracks.append(trackInfo);
         }
-        
+
         currentTrack = currentTrack->p_next;
     }
-
-    
 
     if (tracks) {
         libvlc_track_description_list_release(tracks);
     }
+
     if (metadataAudioId != m_currentAudioId) {
         setAudioTrack(metadataAudioId);
     }
+
     reorderListById(m_audioTracks, m_currentAudioId);
     emit audioTracksChanged();
 }
 
+/**
+ * @brief Sets the active audio track
+ * @param trackId ID of the audio track to activate
+ */
 void VLCPlayerHandler::setAudioTrack(int trackId) {
     if (!m_mediaPlayer) return;
 
@@ -705,10 +779,18 @@ void VLCPlayerHandler::setAudioTrack(int trackId) {
     updateAudioSelected();
 }
 
+/**
+ * @brief Returns the index of the current audio track
+ * @return int Current audio track index
+ */
 int VLCPlayerHandler::getAudioIndex() {
     return m_currentAudioId;
 }
 
+/**
+ * @brief Returns the name/description of the current audio track
+ * @return QString Name of the current audio track
+ */
 QString VLCPlayerHandler::getAudioText() {
     return m_currentAudioText;
 }

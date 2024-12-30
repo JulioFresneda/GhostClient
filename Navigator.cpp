@@ -1,7 +1,19 @@
+/**
+ * @file Navigator.cpp
+ * @brief Implementation of the Navigator class which manages media content filtering, sorting and navigation
+ * for a media streaming application
+ */
+
 #include "Navigator.h"
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+
+ /**
+  * @brief Constructor for Navigator class
+  * @param parent Parent QObject
+  * Initializes the navigator with default values and category mappings
+  */
 Navigator::Navigator(QObject* parent)
     : QObject(parent),
     m_currentCategory("continueWatching"),
@@ -12,18 +24,18 @@ Navigator::Navigator(QObject* parent)
     m_groupByCollection(true),
     m_selectedDirector(""),
     m_selectedProducer(""),
-    m_filteredData(), 
+    m_filteredData(),
     m_sortBy("title"),
     m_sortOrder("asc"),
     m_sidebarCategories({
         {"continueWatching", "Continuar viendo"},
         {"series", "Series"},
         {"movies", "Pelis"}
-    }) {
+        }) {
 
 }
 
-// Getters
+// Getter methods for class properties
 QList<QVariantMap> Navigator::collectionsData() const {
     return m_collectionsData;
 }
@@ -80,13 +92,17 @@ bool Navigator::sortOrder() const {
     return m_sortOrder;
 }
 
-// Setters
+/**
+ * @brief Setter methods for class properties
+ * Each setter updates the corresponding property and triggers updateFilteredData()
+ * to refresh the displayed content
+ */
 void Navigator::setCurrentCategory(const QString& category) {
     if (m_currentCategory != category) {
         m_currentCategory = category;
         updateFilteredData();
         emit currentCategoryChanged();
-        
+
     }
 }
 
@@ -158,7 +174,10 @@ void Navigator::setSortOrder(const bool sortOrder) {
     emit sortOrderChanged();
 }
 
-
+/**
+ * @brief Returns sidebar categories as a list of key-value pairs
+ * @return QVariantList containing category information
+ */
 QVariantList Navigator::sidebarCategories() const {
     QVariantList categories;
     for (auto it = m_sidebarCategories.cbegin(); it != m_sidebarCategories.cend(); ++it) {
@@ -170,24 +189,32 @@ QVariantList Navigator::sidebarCategories() const {
     return categories;
 }
 
+/**
+ * @brief Gets the previous category in the sidebar navigation
+ * @return QString containing the previous category key
+ */
 QString Navigator::getPreviousCategory() const {
     bool previous = true;
     QString value = "";
-    
 
+    // Iterate through categories until current is found
     for (auto it = m_sidebarCategories.cbegin(); it != m_sidebarCategories.cend(); ++it) {
-        
+
         if (it.key() == m_currentCategory) {
             previous = false;
         }
         if (previous) {
             value = it.key();
         }
-        
+
     }
     return value;
 }
 
+/**
+ * @brief Gets the next category in the sidebar navigation
+ * @return QString containing the next category key
+ */
 QString Navigator::getNextCategory() const {
     bool next = false;
     for (auto it = m_sidebarCategories.cbegin(); it != m_sidebarCategories.cend(); ++it) {
@@ -201,6 +228,11 @@ QString Navigator::getNextCategory() const {
     return "";
 }
 
+/**
+ * @brief Gets the formatted title for a media item
+ * @param mediaId ID of the media item
+ * @return Formatted title string including season/episode for TV shows
+ */
 QString Navigator::getMediaTitle(QString mediaId) const {
     for (const auto& media : m_mediaData) {
         if (media["ID"] == mediaId) {
@@ -215,9 +247,11 @@ QString Navigator::getMediaTitle(QString mediaId) const {
     return QString();
 }
 
-
-
-
+/**
+ * @brief Parses a JSON array string into a set of strings
+ * @param json JSON string to parse
+ * @return QSet<QString> containing unique strings from the JSON array
+ */
 QSet<QString> Navigator::parseJson(const QString& json) {
     QSet<QString> parsed;
     QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
@@ -232,17 +266,20 @@ QSet<QString> Navigator::parseJson(const QString& json) {
     return parsed;
 }
 
+/**
+ * @brief Gets all unique genres from collections and media items
+ * @return QVariantList containing unique genres as text objects
+ */
 QVariantList Navigator::getUniqueGenres() {
     QSet<QString> uniqueGenres;
 
-    // Extract genres from collections
+    // Extract genres from collections and media items
     for (const QVariant& collection : m_collectionsData) {
         QVariantMap collectionMap = collection.toMap();
         QString genresJson = collectionMap["genres"].toString();
         uniqueGenres.unite(parseJson(genresJson));
     }
 
-    // Extract genres from individual media items (if they have genres)
     for (const QVariant& mediaItem : m_mediaData) {
         QVariantMap mediaMap = mediaItem.toMap();
         QString genresJson = mediaMap["genres"].toString();
@@ -260,11 +297,14 @@ QVariantList Navigator::getUniqueGenres() {
     return result;
 }
 
+/**
+ * @brief Gets all unique producers from collections and media items
+ * @return QStringList containing unique producers with "All" as first option
+ */
 QStringList Navigator::getUniqueProducers() {
     QSet<QString> producers;
-    //producers.insert("All"); // Always include "All" option
 
-    // Extract producers from collections
+    // Extract producers from collections and media items
     for (const QVariant& collection : m_collectionsData) {
         QVariantMap collectionMap = collection.toMap();
         QString producer = collectionMap["producer"].toString();
@@ -273,7 +313,6 @@ QStringList Navigator::getUniqueProducers() {
         }
     }
 
-    // Extract producers from media items
     for (const QVariant& mediaItem : m_mediaData) {
         QVariantMap mediaMap = mediaItem.toMap();
         QString producer = mediaMap["producer"].toString();
@@ -285,23 +324,28 @@ QStringList Navigator::getUniqueProducers() {
     QStringList producers_list = producers.values();
     producers_list.prepend("All");
     return producers_list;
-
 }
 
+/**
+ * @brief Clears all active filters except director
+ */
 void Navigator::clearFilters() {
-    //m_selectedDirector = "";
     m_selectedProducer = "";
     m_selectedGenres.clear();
     m_selectedEras.clear();
     m_showTopRated = false;
-    
-    //emit selectedDirectorChanged();
+
     emit selectedProducerChanged();
     emit selectedGenresChanged();
     emit selectedErasChanged();
     emit showTopRatedChanged();
 }
 
+/**
+ * @brief Determines the type of episode (first, middle, or final)
+ * @param currentMediaId ID of the current media item
+ * @return QString indicating episode type
+ */
 QString Navigator::getEpisodeType(QString currentMediaId) {
     QVariantMap media = getMedia(currentMediaId);
     if (media["type"] == "episode") {
@@ -318,6 +362,10 @@ QString Navigator::getEpisodeType(QString currentMediaId) {
     return "NoEpisode";
 }
 
+/**
+ * @brief Gets the ID of the final episode in the current collection
+ * @return QString containing the final episode's ID
+ */
 QString Navigator::getFinalEpisode() {
     int max = -1;
     QString mediaId = "";
@@ -332,13 +380,21 @@ QString Navigator::getFinalEpisode() {
     return mediaId;
 }
 
+/**
+ * @brief Gets the ID of the next episode relative to the current one
+ * @param currentMediaId Current episode ID
+ * @param index Number of episodes to look ahead
+ * @return QString containing the next episode's ID
+ */
 QString Navigator::getNextEpisode(QString currentMediaId, int index) {
     int current_episode = -1;
+    // Find current episode number
     for (const auto& media : m_mediaData) {
         if (media["ID"] == currentMediaId) {
             current_episode = media["episode"].toInt();
         }
     }
+    // Find episode with number current + index
     for (const auto& media : m_mediaData) {
         if (media["collection_id"].toString() == m_selectedCollectionId) {
             if (media["episode"].toInt() == current_episode + index) {
@@ -347,11 +403,14 @@ QString Navigator::getNextEpisode(QString currentMediaId, int index) {
         }
     }
     return QString();
-
 }
 
+/**
+ * @brief Gets the watching progress for a media item
+ * @param mediaId ID of the media item
+ * @return float containing progress percentage (0.0 - 1.0)
+ */
 float Navigator::getMediaProgress(QString mediaId) {
-
     if (m_mediaMetadata.contains(mediaId)) {
         QVariantMap meta = m_mediaMetadata[mediaId];
         float percentage = meta["percentage_watched"].toFloat();
@@ -359,13 +418,18 @@ float Navigator::getMediaProgress(QString mediaId) {
             return percentage;
         }
     }
-
     return 0.0;
 }
 
+/**
+ * @brief Checks if any value in a QVariantMap contains a substring
+ * @param map Map to search
+ * @param substring String to search for
+ * @return bool indicating if substring was found
+ */
 bool Navigator::anyValueContains(const QVariantMap& map, const QString& substring) const {
     for (auto it = map.cbegin(); it != map.cend(); ++it) {
-        if (it.value().metaType().id() == QMetaType::QString) { // Check if the value is a QString
+        if (it.value().metaType().id() == QMetaType::QString) {
             if (it.value().toString().contains(substring, Qt::CaseInsensitive)) {
                 return true;
             }
@@ -374,6 +438,11 @@ bool Navigator::anyValueContains(const QVariantMap& map, const QString& substrin
     return false;
 }
 
+/**
+ * @brief Gets collection information by ID
+ * @param collectionId ID of the collection
+ * @return QVariantMap containing collection data
+ */
 QVariantMap Navigator::getCollection(QString collectionId) {
     for (const auto& collection : m_collectionsData) {
         if (collection["ID"] == collectionId) {
@@ -383,16 +452,29 @@ QVariantMap Navigator::getCollection(QString collectionId) {
     return QVariantMap();
 }
 
+/**
+ * @brief Converts a year to its decade string (e.g., "1990's")
+ * @param year Year to convert
+ * @return QString containing the decade
+ */
 QString Navigator::getEraFromYear(int year) {
     if (year <= 0) return QString();
     int decade = (year / 10) * 10;
     return QString::number(decade) + "'s";
 }
 
+/**
+ * @brief Updates filtered data with default empty search text
+ */
 void Navigator::updateFilteredData() {
-    updateFilteredData(""); // Call the version with the default value
+    updateFilteredData("");
 }
 
+/**
+ * @brief Parses genres JSON string into a set of unique genres
+ * @param genresJson JSON string containing genres
+ * @return QSet<QString> containing unique genres
+ */
 QSet<QString> Navigator::parseGenres(const QString& genresJson) {
     QSet<QString> genres;
     QJsonDocument doc = QJsonDocument::fromJson(genresJson.toUtf8());
@@ -407,10 +489,16 @@ QSet<QString> Navigator::parseGenres(const QString& genresJson) {
     return genres;
 }
 
-void Navigator::filterByChosenCollection(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections){
+/**
+ * @brief Filters media based on selected collection
+ * @param filteredMedia Reference to filtered media list
+ * @param filteredCollections Reference to filtered collections list
+ */
+void Navigator::filterByChosenCollection(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections) {
     if (m_selectedCollectionId != "") {
         filteredCollections.clear();
         QList<QVariantMap> _tmp;
+        // Remove media not in selected collection
         for (const auto& media : filteredMedia) {
             if (media["collection_id"] != m_selectedCollectionId) {
                 _tmp.append(media);
@@ -422,27 +510,31 @@ void Navigator::filterByChosenCollection(QList<QVariantMap>& filteredMedia, QLis
     }
 }
 
+/**
+ * @brief Gets metadata for a specific media item
+ * @param mediaId ID of the media item
+ * @return QVariantMap containing media metadata
+ */
 QVariantMap Navigator::getMediaMetadata(QString mediaId) {
     return m_mediaMetadata[mediaId];
 }
 
+/**
+ * @brief Updates filtered data based on current filters and search text
+ * @param searchText Text to filter results by
+ */
 void Navigator::updateFilteredData(QString searchText) {
     QList<QVariantMap> filteredMedia;
     QList<QVariantMap> filteredCollections;
-    
-    filterByCategory(filteredMedia, filteredCollections); // First always, fills variables
+
+    // Apply filters in sequence
+    filterByCategory(filteredMedia, filteredCollections);
     filterByChosenCollection(filteredMedia, filteredCollections);
     filterBySearchText(filteredMedia, filteredCollections, searchText);
-
-    // Genres - collections
-    // Rate - collections and medias
-    // Producer - collections and medias
-    // Eras - medias
-
-
     filterByFilterBarMedia(filteredMedia);
     filterByFilterBarCollection(filteredCollections);
-    
+
+    // Handle special cases for different categories
     if (m_currentCategory == "continueWatching" or m_selectedCollectionId != "") {
         filteredCollections.clear();
     }
@@ -451,6 +543,7 @@ void Navigator::updateFilteredData(QString searchText) {
             filteredCollections.clear();
         }
         else {
+            // Remove media items that are part of displayed collections
             for (const auto& collection : filteredCollections) {
                 for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
                     filteredMedia.removeAll(media);
@@ -459,18 +552,17 @@ void Navigator::updateFilteredData(QString searchText) {
         }
     }
 
-    
-
     m_filteredData = filteredMedia + filteredCollections;
-
     sortFilteredData();
-    
-
     emit filteredDataChanged();
 }
 
+/**
+ * @brief Sorts filtered data based on current sort settings
+ */
 void Navigator::sortFilteredData() {
     if (m_selectedCollectionId != "") {
+        // Sort within collection
         if (m_currentCategory == "series") {
             sortBySeasonAndEpisode(m_filteredData);
         }
@@ -482,6 +574,7 @@ void Navigator::sortFilteredData() {
         }
     }
     else {
+        // Sort all content
         if (m_sortBy == "title") {
             sortByString(m_filteredData, "title", "collection_title");
         }
@@ -491,29 +584,36 @@ void Navigator::sortFilteredData() {
         else if (m_sortBy == "rating") {
             sortByDouble(m_filteredData, "rating", "collection_rating");
         }
-
     }
 }
 
+/**
+ * @brief Filters collections based on current filter settings
+ * @param filteredCollections Reference to list of filtered collections
+ */
 void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollections) {
     QList<QString> filteredCollectionIDs;
+    // Create list of collection IDs
     for (const auto& collection : filteredCollections) {
         filteredCollectionIDs.append(collection["ID"].toString());
     }
 
+    // Apply filters to each collection
     for (const auto& collection : filteredCollections) {
         bool remove = false;
-        // If media collection has any genre, use it
+
+        // Filter by genres if any are selected
         if (m_selectedGenres.size() > 0) {
             bool isGenre = false;
             for (const auto& genre : m_selectedGenres) {
                 for (const auto& mediaGenre : parseGenres(collection["genres"].toString())) {
                     isGenre = isGenre || genre == mediaGenre;
-                }            
+                }
             }
             remove = remove || !isGenre;
         }
 
+        // Filter by eras if any are selected
         if (m_selectedEras.size() > 0) {
             bool isEra = false;
             for (const auto& era : m_selectedEras) {
@@ -523,64 +623,75 @@ void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollecti
             }
             remove = remove || !isEra;
         }
-        
+
+        // Filter by producer
         bool isProducer = m_selectedProducer == "" or m_selectedProducer == collection["producer"];
         for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
             isProducer = isProducer || m_selectedProducer == media["producer"];
         }
         remove = remove || !isProducer;
 
+        // Filter by rating
         if (m_showTopRated) {
             double rating = collection["collection_rating"].toDouble();
             remove = remove || rating < 8.0;
         }
 
+        // Remove collection if it doesn't match filters
         if (!remove) {
             filteredCollectionIDs.removeAll(collection["ID"].toString());
         }
     }
 
+    // Remove filtered collections
     for (const auto& mediaId : filteredCollectionIDs) {
         QVariantMap fm;
         for (const auto& fmedia : filteredCollections) {
             if (fmedia["ID"] == mediaId) {
                 fm = fmedia;
             }
-
         }
         filteredCollections.removeAll(fm);
-
     }
 }
+
+/**
+ * @brief Filters media items based on current filter settings
+ * @param filteredMedia Reference to list of filtered media items
+ */
 void Navigator::filterByFilterBarMedia(QList<QVariantMap>& filteredMedia) {
     QList<QString> filteredMediaIDs;
+    // Create list of media IDs
     for (const auto& media : filteredMedia) {
         filteredMediaIDs.append(media["ID"].toString());
     }
 
+    // Apply filters to each media item
     for (const auto& media : filteredMedia) {
         bool remove = false;
-        // If media collection has any genre, use it
+
+        // Filter by genres
         if (m_selectedGenres.size() > 0) {
             bool isGenre = false;
             for (const auto& genre : m_selectedGenres) {
+                // Check collection genres
                 if (media["collection_id"].toString() != "") {
                     QVariantMap collection_genres = getCollection(media["collection_id"].toString());
                     for (const auto& mediaGenre : parseGenres(collection_genres["genres"].toString())) {
                         isGenre = isGenre || genre == mediaGenre;
                     }
                 }
+                // Check individual media genres
                 if (media["genres"] != "") {
                     for (const auto& mediaGenre : parseGenres(media["genres"].toString())) {
                         isGenre = isGenre || genre == mediaGenre;
                     }
                 }
-                
-
             }
             remove = remove || !isGenre;
         }
 
+        // Filter by eras
         if (m_selectedEras.size() > 0) {
             bool isEra = false;
             for (const auto& era : m_selectedEras) {
@@ -589,33 +700,42 @@ void Navigator::filterByFilterBarMedia(QList<QVariantMap>& filteredMedia) {
             remove = remove || !isEra;
         }
 
+        // Filter by producer
         remove = remove || m_selectedProducer != "" and m_selectedProducer != media["producer"];
 
+        // Filter by rating
         if (m_showTopRated) {
             remove = remove || media["rating"].toDouble() < 8.0;
         }
 
+        // Keep media if it matches filters
         if (!remove) {
             filteredMediaIDs.removeAll(media["ID"].toString());
         }
     }
 
+    // Remove filtered media
     for (const auto& mediaId : filteredMediaIDs) {
         QVariantMap fm;
         for (const auto& fmedia : filteredMedia) {
             if (fmedia["ID"] == mediaId) {
                 fm = fmedia;
             }
-
         }
         filteredMedia.removeAll(fm);
-
     }
 }
 
-void Navigator::filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections, QString searchText) {   
+/**
+ * @brief Filters media and collections based on search text
+ * @param filteredMedia Reference to filtered media list
+ * @param filteredCollections Reference to filtered collections list
+ * @param searchText Text to filter by
+ */
+void Navigator::filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections, QString searchText) {
     if (searchText != "") {
         QList<QVariantMap> _tmp;
+        // Filter media items
         for (const auto& media : filteredMedia) {
             QVariantMap collection = getCollection(media["collection_id"].toString());
             QString collection_title = collection["collection_title"].toString();
@@ -629,6 +749,8 @@ void Navigator::filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVar
         for (const auto& media : _tmp) {
             filteredMedia.removeAll(media);
         }
+
+        // Filter collections
         _tmp.clear();
         for (const auto& media : filteredCollections) {
             if (!anyValueContains(media, searchText)) {
@@ -640,12 +762,16 @@ void Navigator::filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVar
         }
         _tmp.clear();
     }
-      
 }
 
+/**
+ * @brief Filters media and collections based on current category
+ * @param filteredMedia Reference to filtered media list
+ * @param filteredCollections Reference to filtered collections list
+ */
 void Navigator::filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections) {
+    // Filter media items based on category
     for (const auto& media : m_mediaData) {
-
         if (m_currentCategory == "continueWatching") {
             if (getMediaProgress(media["ID"].toString()) > 0 and getMediaProgress(media["ID"].toString()) <= 0.99) {
                 filteredMedia.append(media);
@@ -654,11 +780,12 @@ void Navigator::filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVaria
         if (m_currentCategory == "movies" and media["type"].toString() == "movie") {
             filteredMedia.append(media);
         }
-
         if (m_currentCategory == "series" and media["type"].toString() == "episode") {
             filteredMedia.append(media);
         }
     }
+
+    // Filter collections based on category
     if (m_currentCategory != "continueWatching") {
         for (const auto& collection : m_collectionsData) {
             QString type = collection["collection_type"].toString();
@@ -669,8 +796,12 @@ void Navigator::filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVaria
     }
 }
 
-
-
+/**
+ * @brief Checks if a media item belongs to a collection
+ * @param mediaId ID of the media item
+ * @param collectionId ID of the collection
+ * @return bool indicating if media belongs to collection
+ */
 bool Navigator::mediaInCollection(QString mediaId, QString collectionId) {
     for (const auto& media : m_mediaData) {
         if (media["collection_id"].toString() == collectionId) {
@@ -680,6 +811,11 @@ bool Navigator::mediaInCollection(QString mediaId, QString collectionId) {
     return false;
 }
 
+/**
+ * @brief Gets all media items belonging to a collection
+ * @param collectionId ID of the collection
+ * @return QList<QVariantMap> containing media items
+ */
 QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) {
     QList<QVariantMap> result;
     for (const auto& media : m_mediaData) {
@@ -690,18 +826,28 @@ QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) {
     return result;
 }
 
+/**
+ * @brief Sets the media data and triggers update
+ * @param mediaData List of media items
+ */
 void Navigator::setMediaData(QList<QVariantMap> mediaData) {
     m_mediaData = mediaData;
     emit mediaDataChanged();
-    
-    
 }
 
+/**
+ * @brief Sets the collections data and triggers update
+ * @param collectionsData List of collections
+ */
 void Navigator::setCollectionsData(QList<QVariantMap> collectionsData) {
     m_collectionsData = collectionsData;
     emit collectionsDataChanged();
 }
 
+/**
+ * @brief Sets the media metadata and triggers updates
+ * @param mediaMetadata List of media metadata
+ */
 void Navigator::setMediaMetadata(QList<QVariantMap> mediaMetadata) {
     for (const auto& media : mediaMetadata) {
         m_mediaMetadata[media["mediaID"].toString()] = media;
@@ -711,6 +857,12 @@ void Navigator::setMediaMetadata(QList<QVariantMap> mediaMetadata) {
     updateFilteredData();
 }
 
+/**
+ * @brief Sorts list by string values
+ * @param list Reference to list to sort
+ * @param sortby_media Key for media items
+ * @param sortby_collection Key for collections
+ */
 void Navigator::sortByString(QList<QVariantMap>& list, QString sortby_media, QString sortby_collection) {
     std::sort(list.begin(), list.end(), [&sortby_media, &sortby_collection, this](const QVariantMap& a, const QVariantMap& b) {
         QString valueA = a.contains(sortby_media) ? a[sortby_media].toString() : a.value(sortby_collection).toString();
@@ -721,10 +873,15 @@ void Navigator::sortByString(QList<QVariantMap>& list, QString sortby_media, QSt
         else {
             return valueA > valueB;
         }
-     });
+        });
 }
 
-
+/**
+ * @brief Sorts list by double values
+ * @param list Reference to list to sort
+ * @param sortby_media Key for media items
+ * @param sortby_collection Key for collections
+ */
 void Navigator::sortByDouble(QList<QVariantMap>& list, QString sortby_media, QString sortby_collection) {
     std::sort(list.begin(), list.end(), [&sortby_media, &sortby_collection, this](const QVariantMap& a, const QVariantMap& b) {
         double valueA = a.contains(sortby_media) ? a[sortby_media].toDouble() : a.value(sortby_collection).toDouble();
@@ -735,10 +892,13 @@ void Navigator::sortByDouble(QList<QVariantMap>& list, QString sortby_media, QSt
         else {
             return valueA > valueB;
         }
-        
-    });
+        });
 }
 
+/**
+ * @brief Sorts list by year values
+ * @param list Reference to list to sort
+ */
 void Navigator::sortByYear(QList<QVariantMap>& list) {
     std::sort(list.begin(), list.end(), [this](const QVariantMap& a, const QVariantMap& b) {
         int valueA = a.contains("year") ? a["year"].toInt() : this->getYearOfCollection(a["ID"].toString());
