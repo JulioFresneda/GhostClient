@@ -28,9 +28,9 @@ Navigator::Navigator(QObject* parent)
     m_sortBy("title"),
     m_sortOrder("asc"),
     m_sidebarCategories({
-        {"continueWatching", "Continuar viendo"},
+        {"continueWatching", "Continue Watching"},
         {"series", "Series"},
-        {"movies", "Pelis"}
+        {"movies", "Movies"}
         }) {
 
 }

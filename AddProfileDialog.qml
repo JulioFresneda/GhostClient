@@ -31,7 +31,7 @@ Dialog {
         Text {
             id: title
             font.pixelSize: 24
-            text: "What is your ghost's name?"
+            text: "¿Cómo se llama tu Ghost?"
             color: "#e2e2e2"
         }
 
@@ -41,7 +41,7 @@ Dialog {
             Layout.preferredWidth: 300
             width: 300
             Layout.preferredHeight: 40
-            placeholderText: qsTr("Enter profile name")
+            placeholderText: qsTr("Escribe aquí el nombre de tu Ghost...")
             font.pixelSize: 24
             focus: true // Start with focus on the text field
 
@@ -168,7 +168,7 @@ Dialog {
                 addselected = true
             }
             Button {
-                text: qsTr("Cancel")
+                text: qsTr("Cancelar")
                 //focus: !rowbuttons.addselected
                 onClicked: {
                     addProfileDialog.close()
@@ -190,7 +190,7 @@ Dialog {
             }
 
             Button {
-                text: qsTr("Add Ghost")
+                text: qsTr("Añadir Ghost")
                 //focus: rowbuttons.addselected
                 font.pointSize: 16
                 onClicked: {

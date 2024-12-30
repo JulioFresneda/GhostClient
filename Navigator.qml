@@ -250,7 +250,7 @@ Item {
                     contentItem: RowLayout {
                         spacing: 0
                         Text {
-                            text: "Salir"
+                            text: "Close GhostStream"
                             color: colors.textSecondary
                             font.pointSize: 16
                         }
