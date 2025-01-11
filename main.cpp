@@ -18,7 +18,7 @@
  * @param localHost If true, resolves to "localhost". Default is true.
  * @return A QString containing the resolved IP address or an empty string on failure.
  */
-QString resolveDomain(const QString& domain, bool localHost = true) {
+QString resolveDomain(const QString& domain, bool localHost = false) {
     if (localHost) {
         return "localhost";
     }
@@ -77,7 +77,9 @@ int main(int argc, char* argv[]) {
 
     // Load configuration and resolve public IP address
     QSettings settings("./conf.ini", QSettings::IniFormat);
-    settings.setValue("publicIP", resolveDomain("ghoststream.duckdns.org"));
+	QString domain = settings.value("domain", "localhost").toString();
+
+    settings.setValue("publicIP", resolveDomain(domain, true));
     settings.sync();
 
     // Register custom QML types

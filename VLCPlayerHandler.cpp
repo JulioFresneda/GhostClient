@@ -528,6 +528,7 @@ bool VLCPlayerHandler::tryDownloadSubtitles(const QString& mediaId) {
     languages.append("en");
 
     for (const QString& language : languages) {
+        bool exist = true;
         QUrl url(QString(m_url + "/media/%1/subtitles/%2").arg(mediaId, language + ".vtt"));
 
         // Verify subtitle availability
@@ -542,32 +543,35 @@ bool VLCPlayerHandler::tryDownloadSubtitles(const QString& mediaId) {
         if (reply->error() != QNetworkReply::NoError || httpStatusCode != 200) {
             qWarning() << "Subtitle URL does not exist or returned an error. Status code:" << httpStatusCode;
             reply->deleteLater();
-            break;
+            exist = false;
         }
-        reply->deleteLater();
+        if (exist) {
+            reply->deleteLater();
 
-        // Add subtitle track to media player
-        if (m_mediaPlayer) {
-            QByteArray urlBytes = url.toString().toUtf8();
-            const char* charurl = urlBytes.constData();
-            qDebug() << charurl;
+            // Add subtitle track to media player
+            if (m_mediaPlayer) {
+                QByteArray urlBytes = url.toString().toUtf8();
+                const char* charurl = urlBytes.constData();
+                qDebug() << charurl;
 
-            int result = libvlc_media_player_add_slave(
-                m_mediaPlayer,
-                libvlc_media_slave_type_subtitle,
-                charurl,
-                false
-            );
+                int result = libvlc_media_player_add_slave(
+                    m_mediaPlayer,
+                    libvlc_media_slave_type_subtitle,
+                    charurl,
+                    false
+                );
 
-            qDebug() << "Result of adding subtitle:" << result;
-            if (result != 0) {
-                qWarning() << "Failed to add subtitle track:" << language << "Error code:" << result;
+                qDebug() << "Result of adding subtitle:" << result;
+                if (result != 0) {
+                    qWarning() << "Failed to add subtitle track:" << language << "Error code:" << result;
+                }
+            }
+            else {
+                qWarning() << "Media player is not initialized.";
+                return false;
             }
         }
-        else {
-            qWarning() << "Media player is not initialized.";
-            return false;
-        }
+        
     }
     return true;
 }
