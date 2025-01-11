@@ -59,10 +59,10 @@
     <Import Project="$(QtMsBuild)\qt_defaults.props" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
-    <QtInstall>Qt</QtInstall>
-    <QtModules>core;gui;network;quick;quickcontrols2;opengl;openglwidgets;multimedia;multimediawidgets</QtModules>
+    <QtModules>core;gui;network;quick;quickcontrols2;opengl;openglwidgets;multimedia;multimediawidgets;networkauth</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
     <QtQMLDebugEnable>true</QtQMLDebugEnable>
+    <QtInstall>6.8.1_msvc2</QtInstall>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug2|x64'" Label="QtSettings">
     <QtInstall>6.8.0_msvc2022_64</QtInstall>
@@ -103,6 +103,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutDir>$(SolutionDir)\Build</OutDir>
+    <TargetName>GhostStream</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug2|x64'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
@@ -120,10 +122,10 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     </PostBuildEvent>
     <ClCompile>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\julio\source\repos\GhostStreaming\GhostClient\packages\VideoLAN.LibVLC.Windows.3.0.21\build\x64\include\vlc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\julio\source\repos\JulioFresneda\GhostClient\packages\VideoLAN.LibVLC.Windows.3.0.21\build\x64\include\vlc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>C:\Users\julio\source\repos\GhostStreaming\GhostClient\packages\VideoLAN.LibVLC.Windows.3.0.21\build\x64;C:\Users\julio\source\repos\GhostStreaming\GhostClient;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\julio\source\repos\GhostStreaming\GhostClient;C:\Users\julio\source\repos\JulioFresneda\GhostClient\packages\VideoLAN.LibVLC.Windows.3.0.21\build\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libvlc.lib;libvlccore.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -278,6 +280,8 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
   </ItemGroup>
   <ItemGroup>
     <Image Include="bitmap1.bmp" />
+    <Image Include="media\logo.ico" />
+    <Image Include="media\logo.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

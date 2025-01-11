@@ -178,7 +178,7 @@ Dialog {
                 
                 font.pointSize: 16
                 background: Rectangle {
-                    color: "#050505"
+                    color: "white"
                     border.color: !rowbuttons.addselected ? "#419A38" : "#050505"
                     border.width: 1
                     radius: 4
@@ -202,7 +202,7 @@ Dialog {
                 
                 horizontalPadding: 20
                 background: Rectangle {
-                    color: "#050505"
+                    color: "white"
                     border.color: rowbuttons.addselected && rowbuttons.focus ? "#419A38" : "#e2e2e2"
                     border.width: 1
                     radius: 4

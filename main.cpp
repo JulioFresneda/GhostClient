@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Round);
 
     QGuiApplication app(argc, argv);
-
+    app.setWindowIcon(QIcon(":/logo.ico"));
     // Set application style to "Fusion"
     QQuickStyle::setStyle("Fusion");
 
