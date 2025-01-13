@@ -100,6 +100,8 @@ public:
      */
     Q_INVOKABLE void fetchMediaMetadata();
 
+    Q_INVOKABLE QString getCoverImage(const QString& mediaId, const QString& backupId);
+
 public slots:
     /**
      * @brief Loads a cover image with fallback support
@@ -107,6 +109,7 @@ public slots:
      * @param backupId Backup identifier used if primary image fails
      */
     void loadCoverImage(const QString& mediaId, const QString& backupId);
+    
 
 signals:
     /**

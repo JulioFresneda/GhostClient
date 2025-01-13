@@ -6,6 +6,7 @@ Item {
     id: root
     property string mediaId: ""
     property string backupId: ""
+    property string coverImageBase64: ""
     property bool isLoading: true
     property bool hasError: false
 
@@ -16,7 +17,7 @@ Item {
         cache: true
         asynchronous: true
         visible: !isLoading && !hasError
-        source: ""
+        source: coverImageBase64
 
         onStatusChanged: {
             if (status === Image.Ready) {
@@ -58,7 +59,9 @@ Item {
         target: loginManager
         function onCoverImageLoaded(loadedMediaId, base64Data) {
             if (loadedMediaId === root.mediaId) {
-                coverImage.source = "data:image/jpeg;base64," + base64Data
+                if(coverImage){
+                    coverImage.source = "data:image/jpeg;base64," + base64Data
+                }
             }
         }
         
@@ -72,7 +75,9 @@ Item {
 
     Component.onCompleted: {
         if (mediaId) {
-            loginManager.loadCoverImage(mediaId, backupId)
+            if (coverImageBase64 == ""){
+                //loginManager.loadCoverImage(mediaId, backupId)
+            }
         }
     }
 }

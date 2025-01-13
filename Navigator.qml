@@ -826,6 +826,7 @@ Item {
                     model: navigator.filteredData
                     focus: false
                     currentIndex: -1
+                    
                     delegate: MediaCard {
                         width: 180
                         height: 280
@@ -1056,6 +1057,7 @@ Item {
                     anchors.fill: parent
                     mediaId: card.mediaId
                     backupId: card.backupId
+                    coverImageBase64: loginManager.getCoverImage(card.mediaId, card.backupId)       
                 }
             }
 

@@ -78,8 +78,9 @@ int main(int argc, char* argv[]) {
     // Load configuration and resolve public IP address
     QSettings settings("./conf.ini", QSettings::IniFormat);
 	QString domain = settings.value("domain", "localhost").toString();
+    bool localhost = settings.value("localhost", "false").toBool();
 
-    settings.setValue("publicIP", resolveDomain(domain, true));
+    settings.setValue("publicIP", resolveDomain(domain, localhost));
     settings.sync();
 
     // Register custom QML types

@@ -373,6 +373,16 @@ void Medium::loadCoverImage(const QString& mediaId, const QString& backupId) {
     }
 }
 
+QString Medium::getCoverImage(const QString& mediaId, const QString& backupId) {
+    QString base64 = getBase64ImageFromServer(mediaId);
+
+    // Fall back to backup image if primary fails
+    if (base64 == "") {
+        base64 = getBase64ImageFromServer(backupId);
+    }
+	return "data:image/jpeg;base64," + base64;
+}
+
 /**
  * @brief Retrieves the current authentication token
  * @return QString Current JWT token
