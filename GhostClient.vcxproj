@@ -262,6 +262,7 @@ for /d %%G in ("%USERPROFILE%\.nuget\packages\videolan.libvlc.windows\3.0.21") d
     <None Include="MediaPlayer.qml" />
     <None Include="Navigator.qml" />
     <None Include="packages.config" />
+    <None Include="README.md" />
     <None Include="StartAnimation.qml" />
     <QtRcc Include="qml.qrc" />
     <None Include="main.qml" />

@@ -6,9 +6,9 @@ DefaultGroupName=GhostStream
 OutputDir=Output
 OutputBaseFilename=GhostSetup
 
-WizardImageFile=logo.bmp
+WizardImageFile=logo_installer.bmp
 ; Optional: Add a smaller image in the top-right corner
-WizardSmallImageFile=logo.bmp
+WizardSmallImageFile=small_logo.bmp
 
 [Files]
 ; All files in the same directory as the script
