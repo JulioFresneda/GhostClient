@@ -39,6 +39,68 @@ ApplicationWindow {
     }
 
     /**
+     * Server Connection Status Indicator
+     */
+    Rectangle {
+        id: connectionStatusBox
+        anchors {
+            top: parent.top
+            right: parent.right
+            topMargin: 20
+            rightMargin: 20
+        }
+        width: statusRow.width + 30
+        height: 40
+        color: colors.surface
+        radius: 20
+        border.color: loginManager.isConnected ? colors.superGreen : "#FF4444"
+        border.width: 2
+        opacity: 0.9
+        z: 200
+
+        Row {
+            id: statusRow
+            anchors.centerIn: parent
+            spacing: 10
+
+            Rectangle {
+                width: 12
+                height: 12
+                radius: 6
+                color: loginManager.isConnected ? colors.superGreen : "#FF4444"
+                anchors.verticalCenter: parent.verticalCenter
+                
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: parent.color
+                    opacity: 0.5
+                    scale: 1.5
+                }
+            }
+
+            Text {
+                text: loginManager.isConnected ? "GhostServer ON" : "GhostServer OFF"
+                color: colors.strongWhite
+                font.pointSize: 12
+                font.weight: Font.Medium
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
+        Timer {
+            interval: 10000
+            running: true
+            repeat: true
+            onTriggered: loginManager.checkConnection()
+        }
+        
+        Behavior on border.color {
+            ColorAnimation { duration: 300 }
+        }
+    }
+
+    /**
      * Splash screen animation loader.
      */
     Loader {
@@ -115,6 +177,21 @@ ApplicationWindow {
             id: wallpaper
             source: "qrc:/media/wallpaper_login_1.png"
             anchors.fill: parent
+        }
+
+        /**
+         * Welcome text for the profile selection screen.
+         */
+        Text {
+            id: welcomeText
+            text: "Who's watching?"
+            color: "white"
+            font.pointSize: 32
+            anchors {
+                top: parent.top
+                topMargin: 100
+                horizontalCenter: parent.horizontalCenter
+            }
         }
 
         /**

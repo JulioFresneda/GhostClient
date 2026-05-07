@@ -19,12 +19,30 @@
   */
 Medium::Medium(QObject* parent) : QObject(parent) {
     // Initialize settings from configuration file
-    QSettings settings("./conf.ini", QSettings::IniFormat);
+#ifdef PROJECT_ROOT_DIR
+    QString configPath = QString(PROJECT_ROOT_DIR) + "/conf.ini";
+#else
+    QString configPath = QCoreApplication::applicationDirPath() + "/conf.ini";
+#endif
+    QSettings settings(configPath, QSettings::IniFormat);
 
     // Load stored credentials and server URL
     m_storedPassword = settings.value("password", "").toString();
     m_userID = settings.value("userID", "").toString();
-    m_url = "http://" + settings.value("publicIP").toString() + ":38080";
+
+    // Parse server URL correctly from settings
+    QString host = settings.value("domain", "myghost.server").toString();
+    QString port = settings.value("port", "8443").toString();
+
+    // Determine protocol based on port
+    QString protocol = (port == "8443" || port == "443") ? "https://" : "http://";
+
+    // Construct the URL
+    if (port == "80" || port == "443" || port.isEmpty()) {
+        m_url = protocol + host;
+    } else {
+        m_url = protocol + host + ":" + port;
+    }
 
     // Perform initial authentication
     authenticate();
@@ -46,6 +64,8 @@ void Medium::authenticate() {
     // Validate credentials exist
     if (m_storedPassword.isEmpty() || m_userID.isEmpty()) {
         qDebug() << "Error: Empty userID or password.";
+        m_isConnected = false;
+        emit isConnectedChanged();
         return;
     }
 
@@ -77,13 +97,25 @@ void Medium::authenticate() {
         if (responseObj.contains("token")) {
             m_token = responseObj["token"].toString();
             qDebug() << "Authentication successful! Token:" << m_token;
+            if (!m_isConnected) {
+                m_isConnected = true;
+                emit isConnectedChanged();
+            }
         }
         else {
             qDebug() << "Authentication failed: Token not found in response.";
+            if (m_isConnected) {
+                m_isConnected = false;
+                emit isConnectedChanged();
+            }
         }
     }
     else {
         qDebug() << "Error authenticating:" << reply->errorString();
+        if (m_isConnected) {
+            m_isConnected = false;
+            emit isConnectedChanged();
+        }
     }
 
     reply->deleteLater();
@@ -110,7 +142,12 @@ void Medium::verifyLogin(const QString& password, const QString& userID) {
     }
 
     // Store credentials in configuration
-    QSettings settings("./conf.ini", QSettings::IniFormat);
+#ifdef PROJECT_ROOT_DIR
+    QString configPath = QString(PROJECT_ROOT_DIR) + "/conf.ini";
+#else
+    QString configPath = QCoreApplication::applicationDirPath() + "/conf.ini";
+#endif
+    QSettings settings(configPath, QSettings::IniFormat);
     settings.setValue("password", password);
     settings.setValue("userID", userID);
     settings.sync();
@@ -208,7 +245,12 @@ void Medium::addProfile(const QString& profileID, int pictureID) {
  */
 void Medium::selectProfile(const QString& profileID) {
     // Store selected profile in settings
-    QSettings settings;
+#ifdef PROJECT_ROOT_DIR
+    QString configPath = QString(PROJECT_ROOT_DIR) + "/conf.ini";
+#else
+    QString configPath = QCoreApplication::applicationDirPath() + "/conf.ini";
+#endif
+    QSettings settings(configPath, QSettings::IniFormat);
     settings.setValue("selectedProfileID", profileID);
     m_selectedProfileID = profileID;
     emit profileSelected();
@@ -381,6 +423,31 @@ QString Medium::getCoverImage(const QString& mediaId, const QString& backupId) {
         base64 = getBase64ImageFromServer(backupId);
     }
 	return "data:image/jpeg;base64," + base64;
+}
+
+/**
+ * @brief Pings the server to check connection status
+ */
+void Medium::checkConnection() {
+    QUrl url(m_url);
+    QNetworkRequest request(url);
+    QNetworkReply* reply = m_networkManager.get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        bool connected = true;
+        if (reply->error() == QNetworkReply::ConnectionRefusedError ||
+            reply->error() == QNetworkReply::HostNotFoundError ||
+            reply->error() == QNetworkReply::TimeoutError ||
+            reply->error() == QNetworkReply::NetworkSessionFailedError) {
+            connected = false;
+        }
+
+        if (m_isConnected != connected) {
+            m_isConnected = connected;
+            emit isConnectedChanged();
+        }
+        reply->deleteLater();
+    });
 }
 
 /**

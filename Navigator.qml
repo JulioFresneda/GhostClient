@@ -16,7 +16,7 @@ Item {
     
     property bool isPlayerVisible: false
     property var currentMediaId
-
+    property string token: ""
 
     Navigator {
         id: navigator
@@ -218,12 +218,12 @@ Item {
                         spacing: 0
                         Text {
                             text: " ←"
-                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : colors.black
+                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : "black"
                             font.pointSize: 16
                         }
                         Text {
                             text: "Back"
-                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : colors.black
+                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : "black"
                             font.pointSize: 14
                         }
                     }
@@ -296,7 +296,7 @@ Item {
                         id: searchField
                         Layout.preferredWidth: 300  // Set a width if you need to control the width explicitly
                         //height: 40  // Height should be less than container height to allow centering
-                        anchors.verticalCenter: parent.verticalCenter  // Vertically center the TextField
+                        Layout.alignment: Qt.AlignVCenter  // Vertically center the TextField
                         placeholderText: "Search your ghost..."
                         placeholderTextColor: colors.strongWhite
                         color: colors.strongWhite
@@ -315,7 +315,7 @@ Item {
                     Text {
                         text: "Agrupar"
                         color: "white"  // White text color
-                        anchors.verticalCenter: parent.verticalCenter 
+                        Layout.alignment: Qt.AlignVCenter 
                         font.pointSize: 14
                         visible: navigator.currentCategory === "movies"
                     }
@@ -395,7 +395,7 @@ Item {
 
                     Connections {
                         target: navigator
-                        onMediaLoaded: {
+                        function onMediaLoaded() {
                             genreFilter.model = navigator.getUniqueGenres();
                             producerFilter.model = navigator.getUniqueProducers();
                         }

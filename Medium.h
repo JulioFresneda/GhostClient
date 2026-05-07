@@ -33,6 +33,10 @@ class Medium : public QObject {
          * @brief Property containing the user identifier
          */
         Q_PROPERTY(QString userID READ getUserID CONSTANT)
+        /**
+         * @brief Property containing the server connection status
+         */
+        Q_PROPERTY(bool isConnected READ isConnected NOTIFY isConnectedChanged)
 
 public:
     /**
@@ -64,6 +68,12 @@ public:
      * @return bool True if password exists, false otherwise
      */
     bool hasStoredPassword() const;
+
+    /**
+     * @brief Getter for connection status
+     * @return bool True if connected to server, false otherwise
+     */
+    bool isConnected() const { return m_isConnected; }
 
     /**
      * @brief Verifies and stores login credentials
@@ -110,6 +120,10 @@ public slots:
      */
     void loadCoverImage(const QString& mediaId, const QString& backupId);
     
+    /**
+     * @brief Pings the server to check connection status
+     */
+    void checkConnection();
 
 signals:
     /**
@@ -158,6 +172,11 @@ signals:
      */
     void coverImageError(const QString& mediaId);
 
+    /**
+     * @brief Emitted when connection status changes
+     */
+    void isConnectedChanged();
+
 private:
     QNetworkAccessManager m_networkManager;  ///< Manages network requests
     QString m_storedPassword;                ///< User's stored password
@@ -165,6 +184,7 @@ private:
     QString m_userID;                        ///< User identifier
     QString m_selectedProfileID;             ///< Currently selected profile
     QString m_url;                           ///< Server base URL
+    bool m_isConnected = false;              ///< Connection status flag
 
     /**
      * @brief Retrieves base64 encoded image from server

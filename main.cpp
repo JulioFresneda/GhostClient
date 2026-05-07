@@ -3,11 +3,17 @@
 #include <QQuickStyle>
 #include <QtQuickControls2>
 #include <QQmlContext>
+#include <QDnsLookup>
+#include <QEventLoop>
 #include "Medium.h"
 #include "VLCPlayerHandler.h"  
-#include <Navigator.h>
+#include "Navigator.h"
+
+#ifdef Q_OS_WIN
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#endif
+
 #include <iostream>
 
 /**
@@ -58,6 +64,14 @@ QString resolveDomain(const QString& domain, bool localHost = false) {
  * @return The exit status of the application.
  */
 int main(int argc, char* argv[]) {
+#ifdef Q_OS_WIN
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        std::cerr << "WSAStartup failed." << std::endl;
+        return -1;
+    }
+#endif
+
 #if defined(Q_OS_WIN) && QT_VERSION_CHECK(5, 6, 0) <= QT_VERSION && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     // Enable high DPI scaling for Qt versions between 5.6 and 6.0 on Windows
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
@@ -96,5 +110,11 @@ int main(int argc, char* argv[]) {
     if (engine.rootObjects().isEmpty())
         return -1;
 
-    return app.exec();
+    int result = app.exec();
+
+#ifdef Q_OS_WIN
+    WSACleanup();
+#endif
+
+    return result;
 }

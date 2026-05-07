@@ -76,7 +76,7 @@ Dialog {
                         color: "transparent"
                         anchors.fill: parent
                         border.width: 4
-                        border.color: (index + 1) == pictureID && imageGrid.focus  ? "#419A38" : "#e2e2e2"
+                        border.color: (index + 1) == pictureID ? "#419A38" : "transparent"
                     }
 
                     Image {
@@ -215,4 +215,3 @@ Dialog {
         profileNameField.forceActiveFocus() // Start with focus on the text field
     }
 }
-
