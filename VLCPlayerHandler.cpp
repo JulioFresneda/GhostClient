@@ -9,6 +9,13 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QNetworkRequest>
+#include <QVideoFrame>
+#include <QVideoFrameFormat>
+#include <QMutexLocker>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
@@ -22,9 +29,13 @@
  * @param args Variable argument list containing log message parameters
  */
 void vlcLogCallback(void* data, int level, const libvlc_log_t* ctx, const char* fmt, va_list args) {
+    // libVLC levels: 0=DEBUG, 2=NOTICE, 3=WARNING, 4=ERROR.
+    // Skip everything below WARNING so our [GHOST] lines aren't lost in noise.
+    if (level < 3) return;
     char buf[1024];
     vsnprintf(buf, sizeof(buf), fmt, args);
-    qDebug() << "VLC Log [" << level << "]:" << buf;
+    fprintf(stderr, "[VLC log level=%d] %s\n", level, buf);
+    fflush(stderr);
 }
 
 /**
@@ -38,13 +49,41 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     , m_media(nullptr)
     , m_isPlaying(false)
     , m_videoSink(nullptr)
+    , last_percentage_watched(0.0)
+    , fullScreen(false)
+    , m_videoWidth(0)
+    , m_videoHeight(0)
+    , m_planeY(nullptr)
+    , m_planeU(nullptr)
+    , m_planeV(nullptr)
+    , m_pitchY(0)
+    , m_pitchU(0)
+    , m_pitchV(0)
+    , m_linesY(0)
+    , m_linesU(0)
+    , m_linesV(0)
+    , m_frameDeliveryPending(false)
 {
     // Initialize configuration from settings file
-    QSettings settings("./conf.ini", QSettings::IniFormat);
+#ifdef PROJECT_ROOT_DIR
+    QString configPath = QString(PROJECT_ROOT_DIR) + "/conf.ini";
+#else
+    QString configPath = QCoreApplication::applicationDirPath() + "/conf.ini";
+#endif
+    QSettings settings(configPath, QSettings::IniFormat);
     m_token = settings.value("token").toString();
     m_profileId = settings.value("selectedProfileID").toString();
     QString port = settings.value("port").toString();
-    m_url = "http://" + settings.value("publicIP").toString() + ":" + port;
+    bool isLocalhost = settings.value("localhost", "false").toBool();
+    QString host = isLocalhost ? "localhost" : settings.value("domain").toString();
+    QString scheme = isLocalhost ? "http" : "https";
+    m_url = scheme + "://" + host + ":" + port;
+
+    fprintf(stderr, "[GHOST] VLCPlayerHandler constructor\n");
+    fprintf(stderr, "[GHOST] conf.ini path resolved to: %s\n", QFileInfo(configPath).absoluteFilePath().toUtf8().constData());
+    fprintf(stderr, "[GHOST] m_url = %s\n", m_url.toUtf8().constData());
+    fprintf(stderr, "[GHOST] token present: %s\n", m_token.isEmpty() ? "NO" : "YES");
+    fflush(stderr);
 
     // VLC command line arguments
     const char* args[] = {
@@ -52,21 +91,36 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
     };
 
     // Initialize VLC instance
+    fprintf(stderr, "[GHOST] Calling libvlc_new...\n"); fflush(stderr);
     m_vlcInstance = libvlc_new(sizeof(args) / sizeof(*args), args);
-    libvlc_set_log_verbosity(m_vlcInstance, 2);
+    fprintf(stderr, "[GHOST] libvlc_new returned: %p\n", (void*)m_vlcInstance); fflush(stderr);
     if (!m_vlcInstance) {
-        qDebug() << "Failed to create VLC instance";
+        fprintf(stderr, "[GHOST] ERROR: Failed to create VLC instance\n"); fflush(stderr);
         return;
     }
+    libvlc_set_log_verbosity(m_vlcInstance, 2);
 
     // Create media player instance
+    fprintf(stderr, "[GHOST] Calling libvlc_media_player_new...\n"); fflush(stderr);
     m_mediaPlayer = libvlc_media_player_new(m_vlcInstance);
+    fprintf(stderr, "[GHOST] libvlc_media_player_new returned: %p\n", (void*)m_mediaPlayer); fflush(stderr);
     if (!m_mediaPlayer) {
-        qDebug() << "Failed to create media player";
+        fprintf(stderr, "[GHOST] ERROR: Failed to create media player\n"); fflush(stderr);
         libvlc_release(m_vlcInstance);
         m_vlcInstance = nullptr;
         return;
     }
+
+    // Route decoded frames into our QVideoSink instead of a native window.
+    // Must be set before play; safe to set once for the player's lifetime.
+    libvlc_video_set_format_callbacks(m_mediaPlayer,
+                                      &VLCPlayerHandler::videoFormatCallback,
+                                      &VLCPlayerHandler::videoFormatCleanupCallback);
+    libvlc_video_set_callbacks(m_mediaPlayer,
+                               &VLCPlayerHandler::videoLockCallback,
+                               &VLCPlayerHandler::videoUnlockCallback,
+                               &VLCPlayerHandler::videoDisplayCallback,
+                               this);
 
     // Initialize position update timer
     m_positionTimer = new QTimer(this);
@@ -94,12 +148,14 @@ VLCPlayerHandler::~VLCPlayerHandler() {
  * @return bool True if setup is valid, false otherwise
  */
 bool VLCPlayerHandler::verifyVLCSetup() {
+    fprintf(stderr, "[GHOST] verifyVLCSetup: instance=%p player=%p\n", (void*)m_vlcInstance, (void*)m_mediaPlayer);
+    fflush(stderr);
     if (!m_vlcInstance || !m_mediaPlayer) {
         QString error = "VLC setup verification failed: ";
         if (!m_vlcInstance) error += "VLC instance is null. ";
         if (!m_mediaPlayer) error += "Media player is null. ";
 
-        qDebug() << error;
+        fprintf(stderr, "[GHOST] ERROR: %s\n", error.toUtf8().constData()); fflush(stderr);
         emit errorOccurred(error);
         return false;
     }
@@ -175,14 +231,6 @@ void VLCPlayerHandler::stop() {
         libvlc_media_player_stop(m_mediaPlayer);
         m_isPlaying = false;
         m_positionTimer->stop();
-
-        // Clean up video window
-        if (m_vlcWindow) {
-            m_vlcWindow->close();
-            delete m_vlcWindow;
-            m_vlcWindow = nullptr;
-        }
-
         emit playingStateChanged(false);
         emit positionChanged(0);
     }
@@ -290,13 +338,22 @@ void VLCPlayerHandler::updateMediaMetadataOnServer() {
 void VLCPlayerHandler::cleanupVLC() {
     if (m_media) {
         libvlc_media_release(m_media);
+        m_media = nullptr;
     }
     if (m_mediaPlayer) {
         libvlc_media_player_release(m_mediaPlayer);
+        m_mediaPlayer = nullptr;
     }
     if (m_vlcInstance) {
         libvlc_release(m_vlcInstance);
+        m_vlcInstance = nullptr;
     }
+    // VLC's format-cleanup callback normally frees these, but free defensively
+    // in case the player is destroyed without ever decoding a frame.
+    std::free(m_planeY);
+    std::free(m_planeU);
+    std::free(m_planeV);
+    m_planeY = m_planeU = m_planeV = nullptr;
 }
 
 /**
@@ -340,126 +397,176 @@ QVideoSink* VLCPlayerHandler::videoSink() const {
 }
 
 /**
- * @brief Sets up the video sink and attaches video output
- * @param sink Pointer to the QVideoSink to use
+ * @brief Stores the QVideoSink that the QML VideoOutput is bound to.
+ *
+ * Decoded frames are pushed into this sink from the deliverFrame() slot,
+ * which is invoked on the GUI thread via the videoDisplayCallback().
  */
 void VLCPlayerHandler::setVideoSink(QVideoSink* sink) {
     if (m_videoSink == sink)
         return;
-
     m_videoSink = sink;
-
-    if (!m_videoSink || !m_mediaPlayer)
-        return;
-
-    auto videoOutput = m_videoSink->parent();
-    if (!videoOutput || !videoOutput->inherits("QQuickItem"))
-        return;
-
-    QQuickItem* quickVideoOutput = qobject_cast<QQuickItem*>(videoOutput);
-    if (!quickVideoOutput || !quickVideoOutput->window())
-        return;
-
-    // Handle window visibility changes
-    if (!quickVideoOutput->window()->isVisible()) {
-        QMetaObject::Connection* connection = new QMetaObject::Connection;
-        *connection = connect(quickVideoOutput->window(), &QWindow::visibleChanged, this,
-            [this, quickVideoOutput, connection](bool visible) {
-                if (visible) {
-                    QObject::disconnect(*connection);
-                    delete connection;
-                    attachVideoOutput(quickVideoOutput);
-                }
-            });
-    }
-    else {
-        attachVideoOutput(quickVideoOutput);
-    }
-
     emit videoSinkChanged();
 }
 
 /**
- * @brief Attaches video output to a QQuickItem
- * @param videoOutput The QQuickItem to attach to
- */
-void VLCPlayerHandler::attachVideoOutput(QQuickItem* videoOutput) {
-    if (!videoOutput || !videoOutput->window())
-        return;
-
-    // Create and configure VLC window
-    m_vlcWindow = new QWindow(videoOutput->window());
-    mainWindow = videoOutput->window();
-    QRect mainRect = mainWindow->geometry();
-    QPointF pos = mainWindow->position();
-
-    // Calculate window dimensions
-    int adjustedHeight = mainRect.height() - 160;
-    if (adjustedHeight < 0) {
-        qWarning() << "Adjusted height is negative, setting to minimum height of 10.";
-        adjustedHeight = 10;
-    }
-
-    // Set up window properties
-    m_vlcWindow->setGeometry(0, 0, mainRect.width(), adjustedHeight);
-    m_vlcWindow->setFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-    m_vlcWindow->show();
-
-    QCoreApplication::instance()->installEventFilter(this);
-
-    // Platform-specific window handle setup
-#ifdef Q_OS_WIN
-    WId handle = m_vlcWindow->winId();
-    if (handle) {
-        libvlc_media_player_set_hwnd(m_mediaPlayer, (void*)handle);
-    }
-#elif defined(Q_OS_LINUX)
-    libvlc_media_player_set_xwindow(m_mediaPlayer, m_vlcWindow->winId());
-#elif defined(Q_OS_MAC)
-    libvlc_media_player_set_nsobject(m_mediaPlayer, (void*)m_vlcWindow->winId());
-#endif
-
-    libvlc_video_set_scale(m_mediaPlayer, 0);
-}
-
-/**
- * @brief Event filter for handling keyboard events in fullscreen mode
- * @param obj Object that triggered the event
- * @param event The event to process
- * @return bool True if event was handled, false otherwise
- */
-bool VLCPlayerHandler::eventFilter(QObject* obj, QEvent* event) {
-    if (fullScreen) {
-        if (event->type() == QEvent::KeyPress) {
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-            if (keyEvent->key() == Qt::Key_Escape) {
-                setFullScreen(false);
-                return true;
-            }
-        }
-    }
-    return QObject::eventFilter(obj, event);
-}
-
-/**
- * @brief Toggles fullscreen mode for the video window
- * @param setFullScreen True to enter fullscreen, false to exit
+ * @brief Toggles fullscreen mode by signalling the QML layer.
+ *
+ * The actual layout change (hiding the controls strip and letting the
+ * video item fill the window) is handled in MediaPlayer.qml.
  */
 void VLCPlayerHandler::setFullScreen(bool setFullScreen) {
-    if (!m_vlcWindow)
+    if (fullScreen == setFullScreen)
+        return;
+    fullScreen = setFullScreen;
+    emit fullScreenChanged(fullScreen);
+}
+
+// ---------------------------------------------------------------------------
+// libVLC video callbacks
+//
+// VLC invokes these on its video output thread. We use software rendering
+// into a single BGRA32 buffer and let m_frameMutex serialise access between
+// VLC (lock/unlock) and the GUI thread (deliverFrame). Hardware decoding is
+// implicitly disabled while these callbacks are installed.
+// ---------------------------------------------------------------------------
+
+unsigned VLCPlayerHandler::videoFormatCallback(void** opaque, char* chroma,
+                                               unsigned* width, unsigned* height,
+                                               unsigned* pitches, unsigned* lines) {
+    auto* self = static_cast<VLCPlayerHandler*>(*opaque);
+
+    // I420 = 8-bit YUV 4:2:0 planar. This is the decoder's native output for
+    // most codecs, so VLC writes directly to our buffers without an internal
+    // colour conversion pass — which is what was producing the green stripes
+    // when we asked for RV32. Qt's video sink converts YUV→RGB on the GPU.
+    std::memcpy(chroma, "I420", 4);
+
+    const int w = static_cast<int>(*width);
+    const int h = static_cast<int>(*height);
+    // Round Y dimensions up to multiples of 32 so VLC's pipeline can write
+    // its padded output safely. UV dimensions are half of the (aligned) Y.
+    const int alignedW = (w + 31) & ~31;
+    const int alignedH = (h + 31) & ~31;
+
+    QMutexLocker lock(&self->m_frameMutex);
+    self->m_videoWidth  = w;
+    self->m_videoHeight = h;
+    self->m_pitchY = alignedW;
+    self->m_pitchU = alignedW / 2;
+    self->m_pitchV = alignedW / 2;
+    self->m_linesY = alignedH;
+    self->m_linesU = alignedH / 2;
+    self->m_linesV = alignedH / 2;
+
+    pitches[0] = static_cast<unsigned>(self->m_pitchY);
+    pitches[1] = static_cast<unsigned>(self->m_pitchU);
+    pitches[2] = static_cast<unsigned>(self->m_pitchV);
+    lines[0]   = static_cast<unsigned>(self->m_linesY);
+    lines[1]   = static_cast<unsigned>(self->m_linesU);
+    lines[2]   = static_cast<unsigned>(self->m_linesV);
+
+    std::free(self->m_planeY);
+    std::free(self->m_planeU);
+    std::free(self->m_planeV);
+    self->m_planeY = static_cast<uchar*>(std::calloc(self->m_pitchY, self->m_linesY));
+    self->m_planeU = static_cast<uchar*>(std::calloc(self->m_pitchU, self->m_linesU));
+    self->m_planeV = static_cast<uchar*>(std::calloc(self->m_pitchV, self->m_linesV));
+
+    return 1;
+}
+
+void VLCPlayerHandler::videoFormatCleanupCallback(void* opaque) {
+    auto* self = static_cast<VLCPlayerHandler*>(opaque);
+    QMutexLocker lock(&self->m_frameMutex);
+    std::free(self->m_planeY);
+    std::free(self->m_planeU);
+    std::free(self->m_planeV);
+    self->m_planeY = self->m_planeU = self->m_planeV = nullptr;
+    self->m_videoWidth = 0;
+    self->m_videoHeight = 0;
+    self->m_pitchY = self->m_pitchU = self->m_pitchV = 0;
+    self->m_linesY = self->m_linesU = self->m_linesV = 0;
+}
+
+void* VLCPlayerHandler::videoLockCallback(void* opaque, void** planes) {
+    auto* self = static_cast<VLCPlayerHandler*>(opaque);
+    self->m_frameMutex.lock();
+    planes[0] = self->m_planeY;
+    planes[1] = self->m_planeU;
+    planes[2] = self->m_planeV;
+    return nullptr;
+}
+
+void VLCPlayerHandler::videoUnlockCallback(void* opaque, void* /*picture*/, void* const* /*planes*/) {
+    auto* self = static_cast<VLCPlayerHandler*>(opaque);
+    self->m_frameMutex.unlock();
+}
+
+void VLCPlayerHandler::videoDisplayCallback(void* opaque, void* /*picture*/) {
+    auto* self = static_cast<VLCPlayerHandler*>(opaque);
+
+    // Coalesce: if a delivery is already queued, drop this one — we'll just
+    // pick up the newest frame the next time the GUI thread runs.
+    {
+        QMutexLocker lock(&self->m_frameMutex);
+        if (self->m_frameDeliveryPending) return;
+        self->m_frameDeliveryPending = true;
+    }
+    QMetaObject::invokeMethod(self, "deliverFrame", Qt::QueuedConnection);
+}
+
+/**
+ * @brief GUI-thread slot that copies the latest VLC frame into a
+ *        QVideoFrame and pushes it to the bound QVideoSink.
+ */
+void VLCPlayerHandler::deliverFrame() {
+    QMutexLocker lock(&m_frameMutex);
+    m_frameDeliveryPending = false;
+
+    if (!m_videoSink || !m_planeY || !m_planeU || !m_planeV ||
+        m_videoWidth <= 0 || m_videoHeight <= 0)
         return;
 
-    fullScreen = setFullScreen;
-    QRect mainRect = mainWindow->geometry();
+    // CPU YUV420 → BGRA (BT.601 limited range).
+    QVideoFrameFormat format(QSize(m_videoWidth, m_videoHeight),
+                             QVideoFrameFormat::Format_BGRA8888);
+    QVideoFrame frame(format);
+    if (!frame.map(QVideoFrame::WriteOnly))
+        return;
 
-    if (fullScreen) {
-        m_vlcWindow->setGeometry(0, 0, mainRect.width(), mainRect.height());
-    }
-    else {
-        m_vlcWindow->setGeometry(0, 0, mainRect.width(), mainRect.height() - 160);
+    const int dstPitch = frame.bytesPerLine(0);
+    uchar* dst = frame.bits(0);
+
+    for (int y = 0; y < m_videoHeight; ++y) {
+        const uchar* yRow = m_planeY + y * m_pitchY;
+        const uchar* uRow = m_planeU + (y / 2) * m_pitchU;
+        const uchar* vRow = m_planeV + (y / 2) * m_pitchV;
+        uchar* dstRow = dst + y * dstPitch;
+
+        for (int x = 0; x < m_videoWidth; ++x) {
+            const int Y = yRow[x];
+            const int U = uRow[x / 2] - 128;
+            const int V = vRow[x / 2] - 128;
+
+            int r = (Y << 10) + 1436 * V;
+            int g = (Y << 10) - 352 * U - 731 * V;
+            int b = (Y << 10) + 1814 * U;
+
+            r = std::clamp(r >> 10, 0, 255);
+            g = std::clamp(g >> 10, 0, 255);
+            b = std::clamp(b >> 10, 0, 255);
+
+            uchar* px = dstRow + x * 4;
+            px[0] = static_cast<uchar>(b);
+            px[1] = static_cast<uchar>(g);
+            px[2] = static_cast<uchar>(r);
+            px[3] = 0xFF;
+        }
     }
 
-    m_vlcWindow->show();
+    frame.unmap();
+    m_videoSink->setVideoFrame(frame);
 }
 
 /**
@@ -487,15 +594,23 @@ void VLCPlayerHandler::loadMedia(const QString& mediaId, const QVariantMap& medi
     }
 
     // Create media URL and initialize
-    QString baseUrl = QString(m_url + "/media/%1/manifest").arg(mediaId);
+    QString baseUrl = QString(m_url + "/stream/%1").arg(mediaId);
+    fprintf(stderr, "[GHOST] loadMedia URL: %s\n", baseUrl.toUtf8().constData()); fflush(stderr);
     QByteArray urlBytes = baseUrl.toUtf8();
     m_media = libvlc_media_new_location(m_vlcInstance, urlBytes.constData());
+    fprintf(stderr, "[GHOST] libvlc_media_new_location returned: %p\n", (void*)m_media); fflush(stderr);
 
     if (m_media) {
         // Set media options
-        libvlc_media_add_option(m_media, ":network-caching=1000");
+        libvlc_media_add_option(m_media, ":network-caching=5000");
         libvlc_media_add_option(m_media, ":http-reconnect");
-        libvlc_media_add_option(m_media, ":adaptive-formats=dash");
+        // Force pure software decode. With video callbacks libVLC has to copy
+        // any HW-decoded surface back to CPU memory, and the VAOP→I420 chroma
+        // conversion truncates the bottom chroma rows on this stream — that's
+        // what produced the alternating green stripes at the bottom.
+        libvlc_media_add_option(m_media, ":avcodec-hw=none");
+        QByteArray authHeader = QString(":http-extra-headers=Authorization: Bearer %1\r\n").arg(m_token).toUtf8();
+        libvlc_media_add_option(m_media, authHeader.constData());
 
         libvlc_media_player_set_media(m_mediaPlayer, m_media);
 
@@ -798,5 +913,4 @@ int VLCPlayerHandler::getAudioIndex() {
 QString VLCPlayerHandler::getAudioText() {
     return m_currentAudioText;
 }
-
 

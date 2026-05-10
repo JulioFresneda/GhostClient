@@ -9,6 +9,7 @@
 #include <QQuickItem>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QMutex>
 
 /**
  * @brief Handles video playback using VLC backend in a Qt/QML application
@@ -31,6 +32,8 @@ class VLCPlayerHandler : public QObject {
         Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY subtitleTracksChanged)
         // Available audio tracks
         Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY audioTracksChanged)
+        // Fullscreen toggle (drives QML layout: hides the controls strip)
+        Q_PROPERTY(bool fullScreen READ isFullScreen WRITE setFullScreen NOTIFY fullScreenChanged)
 
 public:
     /**
@@ -96,12 +99,8 @@ public:
      */
     Q_INVOKABLE void setFullScreen(bool fullScreen);
 
-    /**
-     * @brief Handles Qt events for the video window
-     * @param obj Object receiving the event
-     * @param event Event to process
-     */
-    bool eventFilter(QObject* obj, QEvent* event) override;
+    /** @brief Whether fullscreen mode is currently active */
+    bool isFullScreen() const { return fullScreen; }
 
     /**
      * @brief Sets the playback volume
@@ -120,12 +119,6 @@ public:
     Q_INVOKABLE void loadMedia(const QString& mediaId, const QVariantMap& mediaMetadata);
 
 public slots:
-    /**
-     * @brief Attaches a video output surface
-     * @param videoOutput QML video output item
-     */
-    void attachVideoOutput(QQuickItem* videoOutput);
-
     /**
      * @brief Sets the playback position
      * @param position Position in milliseconds
@@ -160,6 +153,9 @@ signals:
     /** @brief Emitted when media duration changes */
     void durationChanged(qint64 duration);
 
+    /** @brief Emitted when fullscreen state changes */
+    void fullScreenChanged(bool fullScreen);
+
     /** @brief Emitted when playback position changes */
     void positionChanged(qint64 position);
 
@@ -190,9 +186,22 @@ signals:
     /** @brief Emitted when playback progress updates */
     void progressUpdated(float percentage);
 
+private slots:
+    /** @brief Pushes the latest decoded frame into the QVideoSink (GUI thread) */
+    void deliverFrame();
+
 private:
     /** @brief Cleans up VLC resources */
     void cleanupVLC();
+
+    // libVLC video callbacks — invoked on VLC's video output thread
+    static unsigned videoFormatCallback(void** opaque, char* chroma,
+                                        unsigned* width, unsigned* height,
+                                        unsigned* pitches, unsigned* lines);
+    static void videoFormatCleanupCallback(void* opaque);
+    static void* videoLockCallback(void* opaque, void** planes);
+    static void videoUnlockCallback(void* opaque, void* picture, void* const* planes);
+    static void videoDisplayCallback(void* opaque, void* picture);
 
     /** @brief Updates media information */
     void updateMediaInfo();
@@ -253,10 +262,28 @@ private:
     // Playback progress tracking
     double last_percentage_watched;
 
-    // Window management
-    QWindow* m_vlcWindow;
-    QWindow* mainWindow;
+    // Fullscreen state (controls QML layout via fullScreenChanged signal)
     bool fullScreen;
+
+    // Frame buffer shared between VLC's video thread and the GUI thread.
+    // m_frameMutex is held during VLC lock/unlock and during GUI-side reads,
+    // which means VLC will block on its next lock if delivery is slow.
+    QMutex m_frameMutex;
+    int m_videoWidth;        // visible frame width in pixels
+    int m_videoHeight;       // visible frame height in pixels
+    // I420 / YUV420P planes. Each plane is allocated to aligned dimensions
+    // (rounded up to 32 px) so VLC's video pipeline has room to write its
+    // padded output without scribbling past the buffer.
+    uchar* m_planeY;
+    uchar* m_planeU;
+    uchar* m_planeV;
+    int m_pitchY;
+    int m_pitchU;
+    int m_pitchV;
+    int m_linesY;
+    int m_linesU;
+    int m_linesV;
+    bool m_frameDeliveryPending;
 };
 
 #endif // VLCPLAYERHANDLER_H

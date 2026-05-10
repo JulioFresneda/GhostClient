@@ -135,14 +135,15 @@ Rectangle {
         // Video area
         Rectangle {
             Layout.fillWidth: true
-            // Use Layout.preferredHeight to make it take remaining space minus controls
-            Layout.preferredHeight: parent.height - 160
+            // Reclaim the controls strip's 160px when fullscreen is active.
+            Layout.preferredHeight: mediaPlayer.fullScreen ? parent.height : parent.height - 160
             color: "black"
 
             VideoOutput {
                 id: videoOutput
                 anchors.fill: parent
-                visible: false
+                visible: true
+                fillMode: VideoOutput.PreserveAspectFit
             }
 
             VLCPlayerHandler {
@@ -151,16 +152,13 @@ Rectangle {
                
                 
                 Component.onCompleted: {
-                    
                     if (root.mediaId) {
+                        videoSink = videoOutput.videoSink
                         if (root.mediaMetadata !== undefined) {
                             loadMedia(root.mediaId, root.mediaMetadata)
                         } else {
                             loadMedia(root.mediaId, {})
                         }
-                        videoSink = videoOutput.videoSink
-                        //audioSelector.currentIndex = mediaPlayer.getAudioIndex()
-                        //audioSelector.currentText = mediaPlayer.getAudioText()
                     }
                 }
                 onMediaEnded: {
@@ -180,6 +178,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 160
+            visible: !mediaPlayer.fullScreen
             color: "#CC000000"
             Layout.preferredWidth: Screen.desktopAvailableWidth
             ColumnLayout {
@@ -516,7 +515,7 @@ Rectangle {
                     Item { Layout.preferredWidth: 24 }
                     Button {
                         id: fullscreenButton
-                        onClicked: mediaPlayer.setFullScreen(true)
+                        onClicked: mediaPlayer.setFullScreen(!mediaPlayer.fullScreen)
                         //focus: rowcontrols.currentIndex === 6
                         flat: true
                         Layout.preferredWidth: 24
@@ -729,5 +728,5 @@ Rectangle {
                seconds.toString().padStart(2, '0')
     }
 
-    
+
 }
