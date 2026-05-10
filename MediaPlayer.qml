@@ -1,9 +1,10 @@
-﻿import QtQuick
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
 import com.ghoststream 1.0
 import QtQuick.VectorImage
+
 Rectangle {
     id: root
     color: "black"
@@ -14,48 +15,47 @@ Rectangle {
     required property string episodeType
 
     property bool isLoading: true
-    property real loadingPos: -1
-    property int loadingPosCounter: 0
+
     signal closeRequested
     signal mediaEnded
     signal nextEpisode
     signal lastEpisode
     signal updateMediaMetadata
+
     width: Screen.desktopAvailableWidth
     height: Screen.desktopAvailableHeight
-    function loadingPosFun(){
-        if (isLoading && loadingPos < mediaPlayer.position){
-            loadingPos = mediaPlayer.position
-            loadingPosCounter += 1
+
+    function restartLoadingWindow() { isLoading = true }
+
+    function formatTime(ms) {
+        let totalSeconds = Math.max(0, Math.floor(ms / 1000))
+        let h = Math.floor(totalSeconds / 3600)
+        let m = Math.floor((totalSeconds % 3600) / 60)
+        let s = totalSeconds % 60
+        if (h > 0) {
+            return h + ":" + m.toString().padStart(2, '0') + ":" + s.toString().padStart(2, '0')
         }
-        if (loadingPosCounter == 3){
-            isLoading = false
+        return m.toString().padStart(2, '0') + ":" + s.toString().padStart(2, '0')
+    }
+
+    Component.onDestruction: mediaPlayer.stop()
+
+    // First frame → hide loading
+    Connections {
+        target: videoOutput.videoSink
+        function onVideoFrameChanged() {
+            if (root.isLoading) root.isLoading = false
         }
     }
-    function restartLoadingWindow(){
-        loadingPosCounter = 0
-        loadingPos = -1
-        isLoading = true
-    }
+
+    // ─────────────── Loading window ───────────────
     Window {
         id: loadingWindow
         visible: isLoading
         flags: Qt.FramelessWindowHint | Qt.Window
-        color: "transparent" // Set transparent background for the window
+        color: "transparent"
         width: 1920
         height: 1080
-
-        Timer {
-            id: periodicTimer
-            interval: 1000 // Call every 1000 ms (1 second)
-            running: true
-            repeat: true
-            onTriggered: {
-                console.log("TIMER")
-                root.loadingPosFun()
-            }
-        }
-
 
         Rectangle {
             id: loadingScreen
@@ -64,10 +64,9 @@ Rectangle {
 
             Image {
                 id: loadingImage
-                source: "qrc:/media/loading.png" // Path to your loading image
+                source: "qrc:/media/loading.png"
                 anchors.centerIn: parent
                 scale: 0.5
-                opacity: 0 // Initially transparent
 
                 transform: Rotation {
                     id: rotation
@@ -75,328 +74,273 @@ Rectangle {
                     origin.y: loadingImage.height / 2
                     angle: 0
                 }
-            }
 
-            ParallelAnimation  {
-                id: fadeInAndRotate
-                loops: Animation.Infinite // Infinite rotation after fade-in
-
-                // Step 1: Fade-in effect
-                NumberAnimation {
-                    target: loadingImage
-                    property: "opacity"
-                    from: 0
-                    to: 1
-                    duration: 1000 // 1 second fade-in
-                }
-
-                // Step 2: Start rotation
-                RotationAnimation {
-                    target: rotation
-                    property: "angle"
-                    from: 0
-                    to: 360
-                    duration: 3000 // 3 seconds per rotation
+                SequentialAnimation on opacity {
                     loops: Animation.Infinite
+                    running: true
+                    NumberAnimation { from: 0.2; to: 1.0; duration: 900; easing.type: Easing.InOutQuad }
+                    NumberAnimation { from: 1.0; to: 0.2; duration: 900; easing.type: Easing.InOutQuad }
                 }
             }
 
-            Timer {
-                id: startDelayTimer
-                interval: 100 // 3 seconds delay
+            RotationAnimation {
+                target: rotation
+                property: "angle"
+                from: 0
+                to: 360
+                duration: 3000
+                loops: Animation.Infinite
                 running: true
-                repeat: false
-                onTriggered: {
-                    fadeInAndRotate.start(); // Start the fade-in and rotation animation after the timer ends
-                }
             }
         }
 
-
-
-        // Ensure the window stays in sync with the parent
         Component.onCompleted: {
             let globalPos = root.mapToGlobal(Qt.point(0, 0));
             x = globalPos.x;
             y = globalPos.y;
             root.widthChanged.connect(() => width = root.width);
             root.heightChanged.connect(() => height = root.height);
-            //isLoading = false
-            
         }
     }
 
-    // Create a basic column layout
-    ColumnLayout {
+    // ─────────────── Video layer (full screen) ───────────────
+    VideoOutput {
+        id: videoOutput
         anchors.fill: parent
-        spacing: 0
-        width: Screen.desktopAvailableWidth
-        height: Screen.desktopAvailableHeight
-        // Video area
-        Rectangle {
-            Layout.fillWidth: true
-            // Reclaim the controls strip's 160px when fullscreen is active.
-            Layout.preferredHeight: mediaPlayer.fullScreen ? parent.height : parent.height - 160
-            color: "black"
+        visible: true
+        fillMode: VideoOutput.PreserveAspectFit
+    }
 
-            VideoOutput {
-                id: videoOutput
-                anchors.fill: parent
-                visible: true
-                fillMode: VideoOutput.PreserveAspectFit
-            }
+    VLCPlayerHandler {
+        id: mediaPlayer
 
-            VLCPlayerHandler {
-                id: mediaPlayer
-                
-               
-                
-                Component.onCompleted: {
-                    if (root.mediaId) {
-                        videoSink = videoOutput.videoSink
-                        if (root.mediaMetadata !== undefined) {
-                            loadMedia(root.mediaId, root.mediaMetadata)
-                        } else {
-                            loadMedia(root.mediaId, {})
-                        }
-                    }
+        Component.onCompleted: {
+            if (root.mediaId) {
+                videoSink = videoOutput.videoSink
+                if (root.mediaMetadata !== undefined) {
+                    loadMedia(root.mediaId, root.mediaMetadata)
+                } else {
+                    loadMedia(root.mediaId, {})
                 }
-                onMediaEnded: {
-                    root.mediaEnded()
-                    if (root.mediaMetadata !== undefined) {
-                        loadMedia(root.mediaId, root.mediaMetadata)
-                    } else {
-                        loadMedia(root.mediaId, {})
-                    }
-                }
-                
             }
-            
+        }
+        onMediaEnded: {
+            root.mediaEnded()
+            if (root.mediaMetadata !== undefined) {
+                loadMedia(root.mediaId, root.mediaMetadata)
+            } else {
+                loadMedia(root.mediaId, {})
+            }
+        }
+    }
+
+    // ─────────────── Top bar (back + title) ───────────────
+    Rectangle {
+        id: topBar
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 96
+        opacity: mediaPlayer.fullScreen ? 0 : 1
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#CC000000" }
+            GradientStop { position: 1.0; color: "#00000000" }
         }
 
-        // Controls area with fixed height
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 32
+            anchors.rightMargin: 32
+            anchors.topMargin: 14
+            spacing: 20
+
+            Button {
+                id: backButton
+                onClicked: {
+                    mediaPlayer.updateMediaMetadata()
+                    root.closeRequested()
+                }
+                flat: true
+                Layout.preferredWidth: 28
+                Layout.preferredHeight: 28
+                Layout.alignment: Qt.AlignTop
+                contentItem: VectorImage {
+                    source: parent.hovered ? "qrc:/media/buttons/left_hover.svg" : "qrc:/media/buttons/left.svg"
+                    anchors.fill: parent
+                    preferredRendererType: VectorImage.CurveRenderer
+                }
+                background: Rectangle { color: "transparent" }
+            }
+
+            Text {
+                text: root.title
+                color: "white"
+                font.pixelSize: 22
+                font.bold: true
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+            }
+        }
+    }
+
+    // ─────────────── Bottom bar (progress + controls) ───────────────
+    Item {
+        id: bottomBar
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 180
+        opacity: mediaPlayer.fullScreen ? 0 : 1
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
+
         Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 160
-            visible: !mediaPlayer.fullScreen
-            color: "#CC000000"
-            Layout.preferredWidth: Screen.desktopAvailableWidth
-            ColumnLayout {
-                anchors {
-                    fill: parent
-                    margins: 16
-                }
-                spacing: 8
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#00000000" }
+                GradientStop { position: 1.0; color: "#EE000000" }
+            }
+        }
 
-                // Title
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 32
+            anchors.rightMargin: 32
+            anchors.topMargin: 36
+            anchors.bottomMargin: 24
+            spacing: 18
+
+            // ──── Progress row ────
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 14
+
                 Text {
-                    text: root.title
+                    text: formatTime(mediaPlayer.position)
                     color: "white"
-                    font.pixelSize: 16
-                    font.bold: true
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
+                    font.pixelSize: 13
+                    Layout.preferredWidth: 60
+                    horizontalAlignment: Text.AlignRight
                 }
 
-                RowLayout {
+                Item {
                     Layout.fillWidth: true
-                    spacing: 8
+                    height: 16
 
-                    Text {
-                        text: formatTime(mediaPlayer.position)
-                        color: "white"
-                        font.pixelSize: 12
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                        height: 20
+                    Rectangle {
+                        id: progressTrack
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                        height: progressMouseArea.containsMouse || progressMouseArea.pressed ? 6 : 4
+                        color: "#33FFFFFF"
+                        radius: 3
+                        Behavior on height { NumberAnimation { duration: 120 } }
 
                         Rectangle {
-                            id: progressBar
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width
-                            height: 4
-                            color: "#1E1E1E"
-                            radius: 2
-
-                            Rectangle {
-                                width: mediaPlayer.duration > 0 ?
-                                       (progressMouseArea.dragPosition / mediaPlayer.duration) * parent.width : 0
-                                height: parent.height
-                                gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-                                    GradientStop { position: 1.0; color: colors.superGreen }
-                                    GradientStop { position: 0.8; color: colors.green }
-                                    GradientStop { position: 0.0; color: colors.green }
-                                }
-                                radius: 2
-                            }
-                        }
-
-                        Rectangle {
-                            id: handle
-                            x: mediaPlayer.duration > 0 ?
-                               (progressMouseArea.dragPosition / mediaPlayer.duration) * (parent.width - width) : 0
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: progressMouseArea.pressed ? 20 : 16
-                            height: width
-                            radius: width / 2
-                            color: colors.superGreen
-                        }
-
-                        MouseArea {
-                            id: progressMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            property bool moved: false
-                            property real dragPosition: mediaPlayer.position // Temporary position during drag
-
-                            onPressed: {
-                                // Calculate position immediately on press
-                                dragPosition = (mouseX / width) * mediaPlayer.duration
-                                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
-                            }
-
-                            onPositionChanged: {
-                                if (pressed) {
-                                    // Update drag position dynamically
-                                    dragPosition = (mouseX / width) * mediaPlayer.duration
-                                }
-                            }
-
-                            onReleased: {
-                                // Commit the new position when released
-                                mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
+                            width: mediaPlayer.duration > 0 ?
+                                   (progressMouseArea.dragPosition / mediaPlayer.duration) * parent.width : 0
+                            height: parent.height
+                            radius: parent.radius
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: colors.green }
+                                GradientStop { position: 1.0; color: colors.superGreen }
                             }
                         }
                     }
 
-                    Text {
-                        text: formatTime(mediaPlayer.duration)
-                        color: "white"
-                        font.pixelSize: 12
+                    Rectangle {
+                        id: progressHandle
+                        x: mediaPlayer.duration > 0 ?
+                           (progressMouseArea.dragPosition / mediaPlayer.duration) * parent.width - width / 2 :
+                           -width / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: progressMouseArea.containsMouse || progressMouseArea.pressed ? 16 : 0
+                        height: width
+                        radius: width / 2
+                        color: colors.superGreen
+                        Behavior on width { NumberAnimation { duration: 120 } }
                     }
-}
 
+                    MouseArea {
+                        id: progressMouseArea
+                        anchors.fill: parent
+                        anchors.topMargin: -8
+                        anchors.bottomMargin: -8
+                        hoverEnabled: true
+                        property real dragPosition: mediaPlayer.position
 
-                // Controls
-                RowLayout {
-                    id: rowcontrols
-                    Component.onCompleted: {
-                        rowcontrols.forceActiveFocus() // Ensure focus starts at this container
-                    }
-                    focus: true
-                    Layout.fillWidth: true
-                    //spacing: 16
-                    Layout.alignment: Qt.AlignVCenter
-    
-                    Keys.onBackPressed: {
-                        backButton.click()
-                    }
-                    Keys.onEscapePressed: {
-                        backButton.click()
-                    }
-                    Keys.onLeftPressed: {
-                        if(leftButton.visible){
-                            leftButton.click()
+                        onPressed: (mouse) => {
+                            dragPosition = (mouse.x / width) * mediaPlayer.duration
+                            mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
+                        }
+                        onPositionChanged: (mouse) => {
+                            if (pressed) {
+                                dragPosition = (mouse.x / width) * mediaPlayer.duration
+                            }
+                        }
+                        onReleased: (mouse) => {
+                            mediaPlayer.setPosition(Math.max(0, Math.min(dragPosition, mediaPlayer.duration)))
                         }
                     }
-                    Keys.onPressed: {
-                        if(event.key === Qt.Key_MediaFastForward){
-                            ffButton.click()
-                        }
-                        if(event.key === Qt.Key_MediaRewind){
-                            rewindButton.click()
-                        }
-                    }
-                    Keys.onDigit1Pressed: {
-                        if (audioSelector.currentIndex < audioSelector.model.length - 1) {
-                            audioSelector.currentIndex++
-                        } else {
-                            audioSelector.currentIndex = 0 // Wrap around to the first item
-                        }
+                }
+
+                Text {
+                    text: formatTime(mediaPlayer.duration)
+                    color: "white"
+                    font.pixelSize: 13
+                    Layout.preferredWidth: 60
+                }
+            }
+
+            // ──── Controls row ────
+            Item {
+                id: rowcontrols
+                Layout.fillWidth: true
+                Layout.preferredHeight: 56
+                focus: true
+
+                Component.onCompleted: rowcontrols.forceActiveFocus()
+
+                Keys.onBackPressed: backButton.click()
+                Keys.onEscapePressed: backButton.click()
+                Keys.onLeftPressed: { if (leftButton.visible) leftButton.click() }
+                Keys.onRightPressed: { if (nextButton.visible) nextButton.click() }
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_MediaFastForward) ffButton.click()
+                    if (event.key === Qt.Key_MediaRewind) rewindButton.click()
+                }
+                Keys.onDigit1Pressed: {
+                    if (audioSelector.count > 0) {
+                        audioSelector.currentIndex = (audioSelector.currentIndex + 1) % audioSelector.count
                         mediaPlayer.setAudioTrack(audioSelector.currentValue)
                     }
-                    Keys.onDigit2Pressed: {
-                        if (subtitleSelector.currentIndex < subtitleSelector.model.length - 1) {
-                            subtitleSelector.currentIndex++
-                        } else {
-                            subtitleSelector.currentIndex = 0 // Wrap around to the first item
-                        }
-                        mediaPlayer.setSubtitleTrack(subtitleSelector.currentValue) 
+                }
+                Keys.onDigit2Pressed: {
+                    if (subtitleSelector.count > 0) {
+                        subtitleSelector.currentIndex = (subtitleSelector.currentIndex + 1) % subtitleSelector.count
+                        mediaPlayer.setSubtitleTrack(subtitleSelector.currentValue)
                     }
-                    Keys.onDigit9Pressed: {
-                        ffButton.click()
-                    }
-                    Keys.onDigit7Pressed: {
-                        rewindButton.click()
-                    }
+                }
+                Keys.onDigit9Pressed: ffButton.click()
+                Keys.onDigit7Pressed: rewindButton.click()
+                Keys.onUpPressed: fullscreenButton.click()
+                Keys.onDownPressed: mediaPlayer.setFullScreen(false)
+                Keys.onVolumeUpPressed: volumeSlider.value = Math.min(100, volumeSlider.value + 10)
+                Keys.onVolumeDownPressed: volumeSlider.value = Math.max(0, volumeSlider.value - 10)
+                Keys.onReturnPressed: playpauseButton.clicked()
 
-                    Keys.onRightPressed: {
-                        if(rightButton.visible){
-                            rightButton.click()
-                        }
-                    }
-                    Keys.onUpPressed: {
-                        fullscreenButton.click()
-                    }
-                    Keys.onDownPressed: {
-                        mediaPlayer.setFullScreen(false)
-                    }
-                    Keys.onVolumeUpPressed: {
-                        if(volumeSlider.value + 10 > 100){
-                            volumeSlider.value = 100
-                        }
-                        else {
-                            volumeSlider.value += 10
-                        }
-                    }
-                    Keys.onReturnPressed: {
-                        playpauseButton.clicked()
-                    }
-                    Keys.onVolumeDownPressed: {
-                        
-                        if(volumeSlider.value - 10 < 0){
-                            volumeSlider.value = 0
-                        }
-                        else {
-                            volumeSlider.value -= 10
-                        }
-                    }
+                // Centered playback group
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 28
 
-
-                    Button {
-                        id: backButton
-                        //focus: rowcontrols.currentIndex === 0
-                        onClicked: {
-                            mediaPlayer.updateMediaMetadata()
-                            root.closeRequested()
-                        }
-                        flat: true
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
-                        contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered || rowcontrols.currentIndex === 0 ? "qrc:/media/buttons/left_hover.svg" : "qrc:/media/buttons/left.svg"
-                            anchors.fill: parent // Make the VectorImage fill the Button
-                            preferredRendererType: VectorImage.CurveRenderer
-                            
-                        }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
-                        
-                    }
-
-                    
-
-                    Item { Layout.preferredWidth: 800 }
                     Button {
                         id: leftButton
                         visible: episodeType == "MiddleEpisode" || episodeType == "FinalEpisode"
-                        //focus: rowcontrols.currentIndex === 1 && visible
                         onClicked: {
                             restartLoadingWindow()
                             root.lastEpisode()
@@ -407,87 +351,64 @@ Rectangle {
                             }
                         }
                         flat: true
-                        Layout.preferredWidth: 16
-                        Layout.preferredHeight: 16
+                        Layout.preferredWidth: 26
+                        Layout.preferredHeight: 26
                         contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered || rowcontrols.currentIndex === 1 ? "qrc:/media/buttons/lastone_hover.svg" : "qrc:/media/buttons/lastone.svg"
-                            anchors.fill: parent // Make the VectorImage fill the Button
+                            source: parent.hovered ? "qrc:/media/buttons/lastone_hover.svg" : "qrc:/media/buttons/lastone.svg"
+                            anchors.fill: parent
                             preferredRendererType: VectorImage.CurveRenderer
-                            
                         }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
+                        background: Rectangle { color: "transparent" }
                     }
+
                     Button {
                         id: rewindButton
-                        onClicked: mediaPlayer.back30sec();
+                        onClicked: mediaPlayer.back30sec()
                         flat: true
-                        //focus:  rowcontrols.currentIndex === 2
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 30
+                        Layout.preferredHeight: 30
                         contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered ||  rowcontrols.currentIndex === 2 ? "qrc:/media/buttons/back_hover.svg" : "qrc:/media/buttons/back.svg"
-                            anchors.fill: parent // Make the VectorImage fill the Button
+                            source: parent.hovered ? "qrc:/media/buttons/back_hover.svg" : "qrc:/media/buttons/back.svg"
+                            anchors.fill: parent
                             preferredRendererType: VectorImage.CurveRenderer
-                            
                         }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
+                        background: Rectangle { color: "transparent" }
                     }
+
                     Button {
                         id: playpauseButton
                         onClicked: mediaPlayer.isPlaying ? mediaPlayer.pauseMedia() : mediaPlayer.playMedia(0)
                         flat: true
-                        //focus:  rowcontrols.currentIndex === 3
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
-                        padding: 0
-                        background: Rectangle {
-                            color: "transparent" // Transparent background
-                            
-                        }
-                        
+                        Layout.preferredWidth: 52
+                        Layout.preferredHeight: 52
+                        // Note: original had play/pause icon names swapped, preserving that behavior.
                         contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered ||  rowcontrols.currentIndex === 3
+                            source: parent.hovered
                                 ? (mediaPlayer.isPlaying ? "qrc:/media/buttons/pause_hover.svg" : "qrc:/media/buttons/play_hover.svg")
                                 : (mediaPlayer.isPlaying ? "qrc:/media/buttons/play.svg" : "qrc:/media/buttons/pause.svg")
-                            anchors.fill: parent // Make the VectorImage fill the Button
+                            anchors.fill: parent
                             preferredRendererType: VectorImage.CurveRenderer
-                            
                         }
+                        background: Rectangle { color: "transparent" }
                     }
+
                     Button {
                         id: ffButton
-                        onClicked: mediaPlayer.forward30sec();
+                        onClicked: mediaPlayer.forward30sec()
                         flat: true
-                        //focus: rowcontrols.currentIndex === 4
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 30
+                        Layout.preferredHeight: 30
                         contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered || rowcontrols.currentIndex === 4 ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
-                            anchors.fill: parent // Make the VectorImage fill the Button
+                            source: parent.hovered ? "qrc:/media/buttons/forward_hover.svg" : "qrc:/media/buttons/forward.svg"
+                            anchors.fill: parent
                             preferredRendererType: VectorImage.CurveRenderer
-                            
                         }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
+                        background: Rectangle { color: "transparent" }
                     }
-                    
+
                     Button {
                         id: nextButton
                         visible: episodeType == "MiddleEpisode" || episodeType == "FirstEpisode"
-                        //focus:  rowcontrols.currentIndex === 5 && visible
                         onClicked: {
                             root.nextEpisode()
                             if (root.mediaMetadata !== undefined) {
@@ -498,235 +419,190 @@ Rectangle {
                             restartLoadingWindow()
                         }
                         flat: true
-                        Layout.preferredWidth: 16
-                        Layout.preferredHeight: 16
+                        Layout.preferredWidth: 26
+                        Layout.preferredHeight: 26
                         contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered || rowcontrols.currentIndex === 5 ? "qrc:/media/buttons/next_hover.svg" : "qrc:/media/buttons/next.svg"
-                            anchors.fill: parent // Make the VectorImage fill the Button
+                            source: parent.hovered ? "qrc:/media/buttons/next_hover.svg" : "qrc:/media/buttons/next.svg"
+                            anchors.fill: parent
                             preferredRendererType: VectorImage.CurveRenderer
-                            
                         }
+                        background: Rectangle { color: "transparent" }
+                    }
+                }
+
+                // Right group: volume / settings / fullscreen
+                RowLayout {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 14
+
+                    VectorImage {
+                        Layout.preferredWidth: 22
+                        Layout.preferredHeight: 22
+                        source: volumeSlider.value == 0 ? "qrc:/media/buttons/sound_0.svg" :
+                                (volumeSlider.value < 51 ? "qrc:/media/buttons/sound_1.svg" : "qrc:/media/buttons/sound_2.svg")
+                        preferredRendererType: VectorImage.CurveRenderer
+                    }
+
+                    Slider {
+                        id: volumeSlider
+                        Layout.preferredWidth: 110
+                        Layout.preferredHeight: 22
+                        from: 0
+                        to: 100
+                        value: 50
+                        stepSize: 1
+                        onValueChanged: mediaPlayer.setVolume(value)
+
                         background: Rectangle {
-                            color: "transparent"
+                            x: volumeSlider.leftPadding
+                            y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                            width: volumeSlider.availableWidth
+                            height: 3
+                            radius: 2
+                            color: "#33FFFFFF"
+
+                            Rectangle {
+                                width: volumeSlider.visualPosition * parent.width
+                                height: parent.height
+                                color: colors.superGreen
+                                radius: 2
+                            }
+                        }
+
+                        handle: Rectangle {
+                            x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
+                            y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 7
+                            color: "white"
+                            border.color: colors.superGreen
+                            border.width: volumeSlider.pressed ? 3 : 2
+                            Behavior on border.width { NumberAnimation { duration: 120 } }
                         }
                     }
-                    Item { Layout.preferredWidth: 24 }
+
+                    Button {
+                        id: settingsButton
+                        flat: true
+                        Layout.preferredWidth: 26
+                        Layout.preferredHeight: 26
+                        onClicked: settingsPopup.opened ? settingsPopup.close() : settingsPopup.open()
+                        contentItem: VectorImage {
+                            source: "qrc:/media/buttons/audio.svg"
+                            anchors.fill: parent
+                            preferredRendererType: VectorImage.CurveRenderer
+                        }
+                        background: Rectangle { color: "transparent" }
+                    }
+
                     Button {
                         id: fullscreenButton
                         onClicked: mediaPlayer.setFullScreen(!mediaPlayer.fullScreen)
-                        //focus: rowcontrols.currentIndex === 6
                         flat: true
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 26
+                        Layout.preferredHeight: 26
                         contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: parent.hovered || rowcontrols.currentIndex === 6 ? "qrc:/media/buttons/fullscreen_hover.svg" : "qrc:/media/buttons/fullscreen.svg"
-                            anchors.fill: parent // Make the VectorImage fill the Button
+                            source: parent.hovered ? "qrc:/media/buttons/fullscreen_hover.svg" : "qrc:/media/buttons/fullscreen.svg"
+                            anchors.fill: parent
                             preferredRendererType: VectorImage.CurveRenderer
-                            
                         }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
+                        background: Rectangle { color: "transparent" }
                     }
-                    Item { Layout.fillWidth: true }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignRight
-                        Button {
-                            //onClicked: 
-                            flat: true
-                            Layout.preferredWidth: 24
-                            Layout.preferredHeight: 24
-                            contentItem: VectorImage {
-                                //height: 6
-                                //width: 6
-                                source: volumeSlider.value == 0 ? "qrc:/media/buttons/sound_0.svg" : (volumeSlider.value < 51 ? "qrc:/media/buttons/sound_1.svg" : "qrc:/media/buttons/sound_2.svg")                          
-                                anchors.fill: parent // Make the VectorImage fill the Button
-                                preferredRendererType: VectorImage.CurveRenderer
-                            
-                            }
-                            background: Rectangle {
-                                color: "transparent"
-                            }
-                        }
-                        Rectangle {
-                            //Layout.fillWidth: true
-                            Layout.preferredHeight: 24
-                            Layout.preferredWidth: 150
-                            color: "transparent"
-                            Slider {
-                                id: volumeSlider
-                                anchors.centerIn: parent
-                                width: 150
-                                from: 0
-                                to: 100
-                                value: 50
-                                stepSize: 1
-                                onValueChanged: {
-                                    console.log("Volume: " + value)
-                                    mediaPlayer.setVolume(value)
-                                }
-
-                                
-
-                            
-
-        
-                                handle: Rectangle {
-                                    x: volumeSlider.leftPadding + (volumeSlider.horizontal ? volumeSlider.visualPosition * (volumeSlider.availableWidth - width) : (volumeSlider.availableWidth - width) / 2)
-                                    y: volumeSlider.topPadding + (volumeSlider.vertical ? volumeSlider.visualPosition * (volumeSlider.availableHeight - height) : (volumeSlider.availableHeight - height) / 2)
-
-                                    implicitWidth: 15
-                                    implicitHeight: 15
-
-                                    radius: width/2
-
-                                    border.width: volumeSlider.pressed ? width/2 : 1
-                                    border.color: volumeSlider.background.color
-                                    color: colors.surface
-                                    Behavior on border.width { SmoothedAnimation {} }
-
-                                    
-                                }
-
-                                background: Rectangle {
-                                    id: bgcolor
-                                    x: (volumeSlider.width  - width) / 2
-                                    y: (volumeSlider.height - height) / 2
-
-                                    implicitWidth: volumeSlider.horizontal ? 200 : 1
-                                    implicitHeight: volumeSlider.horizontal ? 1 : 200
-
-                                    width: volumeSlider.horizontal ? volumeSlider.availableWidth : implicitWidth
-                                    height: volumeSlider.horizontal ? implicitHeight : volumeSlider.availableHeight
-
-                                    radius: width
-
-                                
-                                }
-                            }
-                        }
-                    }
-                    
-                    Item { Layout.fillWidth: true }
-                    Button {
-                        //onClicked: 
-                        flat: true
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
-                        contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: "qrc:/media/buttons/audio.svg"                            
-                            anchors.fill: parent // Make the VectorImage fill the Button
-                            preferredRendererType: VectorImage.CurveRenderer
-                            
-                        }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
-                    }
-                    
-                    ComboBox {
-                        id: audioSelector
-                        Layout.preferredWidth: 150
-                        Layout.preferredHeight: 24
-                        model: mediaPlayer.audioTracks
-                        textRole: "name"
-                        valueRole: "id"
-                        //currentIndex: mediaPlayer.getAudioIndex()
-                        onActivated: mediaPlayer.setAudioTrack(currentValue)
-                        background: Rectangle {
-                            z: -1
-                            color: colors.background
-                            radius: 2
-                            border.color: "white"
-                            //border.width: 4
-                        }
-                        contentItem: Text {
-                            text: audioSelector.currentText
-                            color: "white"         // Text color
-                            verticalAlignment: Text.AlignVCenter
-                            horizontalAlignment: Text.AlignLeft
-                            elide: Text.ElideRight
-                            anchors.leftMargin: 8
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        
-                    }
-                    Button {
-                        //onClicked: 
-                        flat: true
-                        Layout.preferredWidth: 24
-                        Layout.preferredHeight: 24
-                        contentItem: VectorImage {
-                            //height: 6
-                            //width: 6
-                            source: "qrc:/media/buttons/subtitles.svg"                            
-                            anchors.fill: parent // Make the VectorImage fill the Button
-                            preferredRendererType: VectorImage.CurveRenderer
-                            
-                        }
-                        background: Rectangle {
-                            color: "transparent"
-                        }
-                    }
-                    ComboBox {
-                        id: subtitleSelector
-                        Layout.preferredWidth: 150
-                        model: mediaPlayer.subtitleTracks
-                        textRole: "name"
-                        valueRole: "id"
-                        currentIndex: 0
-                        
-                        onActivated: { 
-                            mediaPlayer.setSubtitleTrack(currentValue)        
-                        }
-                        Layout.preferredHeight: 24
-                        background: Rectangle {
-                            z: -1
-                            color: colors.background
-                            radius: 2
-                            border.color: "white"
-                            //border.width: 4
-                        }
-                        contentItem: Text {
-                            text: subtitleSelector.currentText
-                            color: "white"         // Text color
-                            verticalAlignment: Text.AlignVCenter
-                            horizontalAlignment: Text.AlignLeft
-                            elide: Text.ElideRight
-                            anchors.leftMargin: 8
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        
-                    }
-
-                    
                 }
             }
         }
     }
 
-    
+    // ─────────────── Settings popover (audio + subtitles) ───────────────
+    Popup {
+        id: settingsPopup
+        parent: root
+        x: root.width - width - 40
+        y: root.height - 200 - height
+        width: 320
+        modal: false
+        focus: true
+        closePolicy: Popup.CloseOnPressOutsideParent | Popup.CloseOnEscape
+        padding: 18
 
-    Component.onDestruction: {
-        mediaPlayer.stop()
+        background: Rectangle {
+            color: "#F2050505"
+            border.color: "#33FFFFFF"
+            border.width: 1
+            radius: 10
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 16
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Text {
+                    text: "Audio"
+                    color: "white"
+                    font.pixelSize: 13
+                    font.bold: true
+                }
+                ComboBox {
+                    id: audioSelector
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 32
+                    model: mediaPlayer.audioTracks
+                    textRole: "name"
+                    valueRole: "id"
+                    onActivated: mediaPlayer.setAudioTrack(currentValue)
+                    background: Rectangle {
+                        color: colors.surface
+                        radius: 4
+                        border.color: "#33FFFFFF"
+                    }
+                    contentItem: Text {
+                        text: audioSelector.currentText
+                        color: "white"
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 12
+                        rightPadding: 24
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Text {
+                    text: "Subtitles"
+                    color: "white"
+                    font.pixelSize: 13
+                    font.bold: true
+                }
+                ComboBox {
+                    id: subtitleSelector
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 32
+                    model: mediaPlayer.subtitleTracks
+                    textRole: "name"
+                    valueRole: "id"
+                    currentIndex: 0
+                    onActivated: mediaPlayer.setSubtitleTrack(currentValue)
+                    background: Rectangle {
+                        color: colors.surface
+                        radius: 4
+                        border.color: "#33FFFFFF"
+                    }
+                    contentItem: Text {
+                        text: subtitleSelector.currentText
+                        color: "white"
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 12
+                        rightPadding: 24
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+        }
     }
-
-    function formatTime(ms) {
-        let seconds = Math.floor(ms / 1000)
-        let minutes = Math.floor(seconds / 60)
-        seconds = seconds % 60
-        return minutes.toString().padStart(2, '0') + ':' + 
-               seconds.toString().padStart(2, '0')
-    }
-
-
 }

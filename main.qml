@@ -43,6 +43,9 @@ ApplicationWindow {
      */
     Rectangle {
         id: connectionStatusBox
+        // Only show on the profile-selector screen — not during the splash and
+        // not after a profile has been chosen and the navigator is loaded.
+        visible: profileView.visible && !startAnimation.active
         anchors {
             top: parent.top
             right: parent.right
@@ -52,7 +55,7 @@ ApplicationWindow {
         width: statusRow.width + 30
         height: 40
         color: colors.surface
-        radius: 20
+        radius: 0
         border.color: loginManager.isConnected ? colors.superGreen : "#FF4444"
         border.width: 2
         opacity: 0.9
@@ -98,6 +101,48 @@ ApplicationWindow {
         Behavior on border.color {
             ColorAnimation { duration: 300 }
         }
+    }
+
+    /**
+     * Exit button — top-left, mirrors the status indicator's positioning and
+     * shares its visibility rules (profile selector only).
+     */
+    Rectangle {
+        id: exitButton
+        visible: profileView.visible && !startAnimation.active
+        anchors {
+            top: parent.top
+            left: parent.left
+            topMargin: 20
+            leftMargin: 20
+        }
+        width: 40
+        height: 40
+        color: colors.surface
+        radius: 0
+        border.color: exitMouseArea.containsMouse ? "#FF4444" : "#33FFFFFF"
+        border.width: 2
+        opacity: 0.9
+        z: 200
+
+        Text {
+            anchors.centerIn: parent
+            text: "×"
+            color: exitMouseArea.containsMouse ? "#FF6666" : colors.strongWhite
+            font.pixelSize: 22
+            font.weight: Font.Light
+            Behavior on color { ColorAnimation { duration: 150 } }
+        }
+
+        MouseArea {
+            id: exitMouseArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Qt.quit()
+        }
+
+        Behavior on border.color { ColorAnimation { duration: 150 } }
     }
 
     /**
@@ -148,6 +193,12 @@ ApplicationWindow {
         }
         onLoaded: {
             appLoader.item.token = loginManager.getToken();
+            appLoader.item.backToProfileSelect.connect(function() {
+                appLoader.visible = false
+                appLoader.source = ""
+                profileRow.currentIndex = -1
+                loginManager.fetchUserProfile()
+            })
         }
     }
 
@@ -168,220 +219,61 @@ ApplicationWindow {
         id: profileView
         visible: !appLoader.visible
         anchors.fill: parent
-        color: "#121212"
+        color: "#0A0A0A"
 
-        /**
-         * Background image for the profile selection screen.
-         */
+        // Background — PreserveAspectCrop so the wallpaper fills any aspect
+        // ratio without distortion (crops the long edge instead of stretching).
         Image {
             id: wallpaper
             source: "qrc:/media/wallpaper_login_1.png"
             anchors.fill: parent
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
         }
 
-        /**
-         * Welcome text for the profile selection screen.
-         */
-        Text {
-            id: welcomeText
-            text: "Who's watching?"
-            color: "white"
-            font.pointSize: 32
-            anchors {
-                top: parent.top
-                topMargin: 100
-                horizontalCenter: parent.horizontalCenter
-            }
-        }
-
-        /**
-         * Container for user profiles.
-         */
+        // ─────────────── Profile selector row ───────────────
         Item {
             id: profileContainer
-            anchors {
-                top: welcomeText.bottom
-                topMargin: 60
-                left: parent.left
-                right: parent.right
-            }
-            height: parent.height*1.61
+            anchors.fill: parent
 
             Row {
                 id: profileRow
-                anchors.centerIn: parent
-                spacing: 40
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: parent.height * 0.07
+                spacing: 56
 
-                property int currentIndex: 0
+                // -1 = nothing pre-selected. Right-arrow lands on index 0,
+                // hover/click activates the slot under the cursor.
+                property int currentIndex: -1
 
-                /**
-                 * Repeater for displaying user profiles.
-                 */
                 Repeater {
                     model: profileModel
-                    delegate: Item {
-                        id: profileItem
-                        width: 160
-                        height: 160
-
-                        focus: index === profileRow.currentIndex
-
-                        Rectangle {
-                            id: profileRect
-                            width: 160
-                            height: 160
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            scale: index === profileRow.currentIndex || profileMouseArea.containsMouse ? 1.1 : 1.0
-                            color: colors.strongWhite
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: parent.radius
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#419A38" }
-                                    GradientStop { position: 0.5; color: "#163513" }
-                                    GradientStop { position: 1.0; color: "#163513" }
-                                }
-                                visible: index === profileRow.currentIndex || profileMouseArea.containsMouse
-                            }
-
-                            Image {
-                                id: profileImage
-                                source: "qrc:/media/ghosts/" + model.pictureID
-                                anchors {
-                                    fill: parent
-                                    margins: 5
-                                }
-                                sourceSize.width: 160
-                                sourceSize.height: 160
-                            }
-
-                            Rectangle {
-                                anchors {
-                                    top: profileRect.bottom
-                                    topMargin: -5
-                                    horizontalCenter: profileRect.horizontalCenter
-                                }
-                                width: 60
-                                height: contentText.height + 10
-                                color: "transparent"
-                                bottomLeftRadius: 50
-                                bottomRightRadius: 50
-
-                                Text {
-                                    id: contentText
-                                    text: model.profileID
-                                    color: "white"
-                                    font {
-                                        pointSize: 16
-                                    }
-                                    anchors.centerIn: parent
-                                    horizontalAlignment: Text.AlignHCenter
-                                    elide: Text.ElideRight
-                                    wrapMode: Text.WordWrap
-                                }
-                            }
-
-                            MouseArea {
-                                id: profileMouseArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: loginManager.selectProfile(model.profileID)
-                            }
-
-                            Behavior on scale {
-                                NumberAnimation {
-                                    duration: 200
-                                    easing.type: Easing.OutQuad
-                                }
-                            }
-                        }
+                    delegate: ProfileSlot {
+                        property bool active: index === profileRow.currentIndex || hoverArea.containsMouse
+                        avatarSource: "qrc:/media/ghosts/" + model.pictureID
+                        label: model.profileID
+                        focused: active
+                        onActivated: loginManager.selectProfile(model.profileID)
                     }
                 }
 
-                /**
-                 * Button for adding new user profiles.
-                 */
-                Item {
-                    id: addProfileItem
-                    width: 160
-                    height: 160
+                ProfileSlot {
+                    id: addSlot
                     visible: profileModel.count < 5
-
-                    Rectangle {
-                        id: addProfileRect
-                        width: 160
-                        height: 160
-                        color: colors.background
-                        border.width: 5
-                        border.color: colors.strongWhite
-                        anchors.centerIn: parent
-                        scale: profileRow.currentIndex === profileModel.count || addProfileMouseArea.containsMouse ? 1.1 : 1.0
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: parent.radius
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#419A38" }
-                                GradientStop { position: 1.0; color: "#163513" }
-                            }
-                            visible: profileRow.currentIndex === profileModel.count || addProfileMouseArea.containsMouse
-                        }
-
-                        Text {
-                            text: "+"
-                            color: colors.strongWhite
-                            font {
-                                pointSize: 180
-                                weight: Font.Light
-                            }
-                            x: (parent.width  - width ) / 2
-                            y: (parent.height - height) / 2 - 27
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        MouseArea {
-                            id: addProfileMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: addProfileDialog.open()
-                        }
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: 200
-                                easing.type: Easing.OutQuad
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: "Add Ghost"
-                        color: "#FFFFFF"
-                        font {
-                            pointSize: 16
-                            weight: Font.Light
-                        }
-                        anchors {
-                            top: addProfileRect.bottom
-                            topMargin: 15
-                            horizontalCenter: addProfileRect.horizontalCenter
-                        }
-                    }
+                    property bool active: profileRow.currentIndex === profileModel.count || hoverArea.containsMouse
+                    placeholder: true
+                    focused: active
+                    onActivated: addProfileDialog.open()
                 }
             }
 
-            /**
-             * Key event handlers for navigating between profiles.
-             */
             Keys.onLeftPressed: {
                 if (profileRow.currentIndex > 0) {
                     profileRow.currentIndex--
                     forceActiveFocus()
                 }
             }
-
             Keys.onRightPressed: {
                 var maxIndex = profileModel.count + (profileModel.count < 5 ? 1 : 0) - 1
                 if (profileRow.currentIndex < maxIndex) {
@@ -389,8 +281,8 @@ ApplicationWindow {
                     forceActiveFocus()
                 }
             }
-
             Keys.onReturnPressed: {
+                if (profileRow.currentIndex < 0) return
                 if (profileRow.currentIndex === profileModel.count) {
                     addProfileDialog.open()
                 } else {
@@ -398,9 +290,7 @@ ApplicationWindow {
                 }
             }
 
-            Component.onCompleted: {
-                profileContainer.forceActiveFocus()
-            }
+            Component.onCompleted: profileContainer.forceActiveFocus()
         }
     }
 

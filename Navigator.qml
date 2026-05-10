@@ -12,11 +12,13 @@ Item {
     width: 1920
     height: 1080
 
-    
-    
     property bool isPlayerVisible: false
     property var currentMediaId
     property string token: ""
+
+    // Emitted when the user wants to switch profile — main.qml hides the
+    // navigator and shows the profile selector again.
+    signal backToProfileSelect
 
     Navigator {
         id: navigator
@@ -146,8 +148,8 @@ Item {
                 Button {
                     id: imageButton
                     z: 1
-                    Layout.fillWidth: true // Match the width of Repeater buttons
-                    height: width * 0.8    // Maintain the aspect ratio (adjust 0.6 to match your image's ratio)
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: width * 0.8
 
                     background: Rectangle {
                         anchors.fill: parent
@@ -162,7 +164,7 @@ Item {
                     }
 
                     onClicked: {
-                        Qt.openUrlExternally("https://www.github.com/JulioFresneda/GhostClient");
+                        Qt.openUrlExternally("https://github.com/JulioFresneda/GhostStream");
                     }
                 }
                 Item {
@@ -171,24 +173,37 @@ Item {
 
                 // Categories
                 Repeater {
-                    model: navigator.sidebarCategories() // Call the C++ method
+                    model: navigator.sidebarCategories()
                     delegate: ItemDelegate {
                         Layout.fillWidth: true
-                        height: 48
+                        height: 44
                         focus: index === sidebar.currentIndex
+                        property bool isActive: navigator.currentCategory === modelData.key
 
                         background: Rectangle {
-                            color: navigator.currentCategory === modelData.key ? 
-                                  colors.primary : "black"
-                            radius: 8
+                            color: hovered ? "#14FFFFFF" : "transparent"
+                            radius: 0
+
+                            // Green active-state bar on the left edge
+                            Rectangle {
+                                visible: parent.parent.isActive
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                width: 4
+                                color: colors.superGreen
+                            }
                         }
 
                         contentItem: Text {
-                            text: modelData.value // Use the value from the map
-                            color: navigator.currentCategory === modelData.key ? 
-                                  colors.textPrimary : colors.textSecondary
+                            text: modelData.value
+                            color: parent.isActive ? colors.superGreen
+                                   : (parent.hovered ? "white" : "#B3FFFFFF")
                             font.pointSize: 14
+                            font.weight: parent.isActive ? Font.Medium : Font.Normal
+                            leftPadding: 16
                             verticalAlignment: Text.AlignVCenter
+                            Behavior on color { ColorAnimation { duration: 120 } }
                         }
 
                         onClicked: {
@@ -198,70 +213,73 @@ Item {
                     }
                 }
 
+                // ── In-collection back button (visible only inside a collection)
+                ItemDelegate {
+                    Layout.fillWidth: true
+                    height: 44
+                    visible: navigator.selectedCollectionId !== ""
 
-                
+                    background: Rectangle {
+                        color: hovered ? "#14FFFFFF" : "transparent"
+                        radius: 0
+                    }
+                    contentItem: Text {
+                        text: "←  Back to library"
+                        color: parent.hovered ? "white" : "#B3FFFFFF"
+                        font.pointSize: 13
+                        leftPadding: 16
+                        verticalAlignment: Text.AlignVCenter
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    onClicked: navigator.selectedCollectionId = ""
+                }
+
+                // Spacing between categories and the bottom group
+                Item { Layout.preferredHeight: 24 }
 
                 ItemDelegate {
                     Layout.fillWidth: true
-                    //height: 0
-                    visible: true
+                    Layout.preferredHeight: 44
 
                     background: Rectangle {
-                        //
-                        color: "black"
-                        //radius: 8
-                        //border.width: 4
-                        //border.color: colors.strongWhite
+                        color: parent.hovered ? "#14FFFFFF" : "transparent"
+                        radius: 0
                     }
-
-                    contentItem: RowLayout {
-                        spacing: 0
-                        Text {
-                            text: " ←"
-                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : "black"
-                            font.pointSize: 16
-                        }
-                        Text {
-                            text: "Back"
-                            color: navigator.selectedCollectionId !== "" ? colors.textSecondary : "black"
-                            font.pointSize: 14
-                        }
+                    contentItem: Text {
+                        text: "Switch profile"
+                        color: parent.hovered ? "white" : "#B3FFFFFF"
+                        font.pointSize: 14
+                        font.weight: Font.Normal
+                        leftPadding: 16
+                        verticalAlignment: Text.AlignVCenter
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
-
-                    onClicked: {
-                        navigator.selectedCollectionId = ""
-                        
-                    }
+                    onClicked: root.backToProfileSelect()
                 }
-                Item { height: 60 } // Spacer
+
+                Item { Layout.preferredHeight: 8 }
+
                 ItemDelegate {
                     Layout.fillWidth: true
-                    height: 0
-                    visible: true
+                    Layout.preferredHeight: 44
 
                     background: Rectangle {
-                        //
-                        color: "black"
-                        //radius: 8
-                        //border.width: 4
-                        //border.color: colors.strongWhite
+                        color: parent.hovered ? "#33FF4444" : "transparent"
+                        radius: 0
                     }
-
-                    contentItem: RowLayout {
-                        spacing: 0
-                        Text {
-                            text: "Close"
-                            color: colors.textSecondary
-                            font.pointSize: 16
-                        }
+                    contentItem: Text {
+                        text: "Exit"
+                        color: parent.hovered ? "#FF6666" : "#B3FFFFFF"
+                        font.pointSize: 14
+                        font.weight: Font.Normal
+                        leftPadding: 16
+                        verticalAlignment: Text.AlignVCenter
+                        Behavior on color { ColorAnimation { duration: 120 } }
                     }
-
-                    onClicked: {
-                        Qt.quit()
-                        
-                    }
+                    onClicked: Qt.quit()
                 }
-                Item { Layout.fillHeight: true } // Spacer
+
+                Item { Layout.fillHeight: true } // push everything up
             }
         }
 
@@ -281,7 +299,7 @@ Item {
                 Layout.fillWidth: true
                 height: 56
                 color: colors.surface
-                radius: 8
+                radius: 0
                 z: 2
 
                 RowLayout {
@@ -304,8 +322,12 @@ Item {
 
                         background: Rectangle {
                             color: colors.background
-                            radius: 4
+                            radius: 0
+                            border.color: searchField.activeFocus ? colors.superGreen : "#22FFFFFF"
+                            border.width: 1
                         }
+                        leftPadding: 12
+                        rightPadding: 12
 
                         onTextChanged: navigator.updateFilteredData(searchField.text)
                     }
@@ -336,7 +358,7 @@ Item {
                         indicator: Rectangle {
                             implicitWidth: 40
                             implicitHeight: 40
-                            radius: 3
+                            radius: 0
                             border.color: colors.primary
                             color: "transparent"
 
@@ -344,7 +366,7 @@ Item {
                                 width: 20
                                 height: 20
                                 anchors.centerIn: parent
-                                radius: 2
+                                radius: 0
                                 color: colors.primary
                                 visible: groupMoviesCheck.checked
                             }
@@ -367,7 +389,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: filterBarRowLayout.implicitHeight + (2 * padding)
                 color: colors.surface
-                radius: 8
+                radius: 0
                 visible: navigator.selectedCollectionId === "" ? true : false
                 z: 2
                 property int padding: 8
@@ -413,7 +435,9 @@ Item {
 
                         background: Rectangle {
                             color: colors.background
-                            radius: 4
+                            radius: 0
+                            border.color: genreFilter.activeFocus ? colors.superGreen : "#22FFFFFF"
+                            border.width: 1
                         }
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
@@ -461,18 +485,17 @@ Item {
                             }
                             
                             onCheckedChanged: {
+                                // QML JS arrays from QList<QString> properties
+                                // must be reassigned to trigger the setter —
+                                // mutating in place doesn't propagate.
+                                let g = navigator.selectedGenres.slice()
                                 if (checked) {
-                                    if (!navigator.selectedGenres.includes(modelData.text)) {
-                                        navigator.selectedGenres.push(modelData.text)
-                                    }
+                                    if (!g.includes(modelData.text)) g.push(modelData.text)
                                 } else {
-                                    const index = navigator.selectedGenres.indexOf(modelData.text)
-                                    if (index > -1) {
-                                        navigator.selectedGenres.splice(index, 1)
-                                    }
+                                    const i = g.indexOf(modelData.text)
+                                    if (i > -1) g.splice(i, 1)
                                 }
-                                console.log(filterBar.selectedGenres)
-                                navigator.updateFilteredData()
+                                navigator.selectedGenres = g
                             }
                         }
                     }
@@ -488,7 +511,9 @@ Item {
 
                         background: Rectangle {
                             color: colors.background
-                            radius: 4
+                            radius: 0
+                            border.color: eraFilter.activeFocus ? colors.superGreen : "#22FFFFFF"
+                            border.width: 1
                         }
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
@@ -536,18 +561,14 @@ Item {
                             }
 
                             onCheckedChanged: {
+                                let e = navigator.selectedEras.slice()
                                 if (checked) {
-                                    if (!navigator.selectedEras.includes(modelData)) {
-                                        navigator.selectedEras.push(modelData)
-                                    }
+                                    if (!e.includes(modelData)) e.push(modelData)
                                 } else {
-                                    const index = navigator.selectedEras.indexOf(modelData)
-                                    if (index > -1) {
-                                        navigator.selectedEras.splice(index, 1)
-                                    }
+                                    const i = e.indexOf(modelData)
+                                    if (i > -1) e.splice(i, 1)
                                 }
-                                console.log(navigator.selectedEras)
-                                navigator.updateFilteredData()
+                                navigator.selectedEras = e
                             }
                         }
 
@@ -562,7 +583,9 @@ Item {
                         checked: navigator.showTopRated
                         background: Rectangle {
                             color: colors.background
-                            radius: 4
+                            radius: 0
+                            border.color: "#22FFFFFF"
+                            border.width: 1
                         }
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
@@ -578,12 +601,16 @@ Item {
                         Layout.preferredWidth: 250
                         background: Rectangle {
                             color: colors.background
-                            radius: 4
+                            radius: 0
+                            border.color: producerFilter.activeFocus ? colors.superGreen : "#22FFFFFF"
+                            border.width: 1
                         }
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
                         model: navigator.getUniqueProducers()
-                        displayText: currentText || "Producer"
+                        // The model has "All" prepended as index 0 — show the
+                        // placeholder until the user actually picks a producer.
+                        displayText: (currentIndex > 0 && currentText) ? currentText : "Producer"
                         contentItem: Item {
                             implicitWidth: producerText.implicitWidth
                             implicitHeight: producerText.implicitHeight
@@ -620,7 +647,9 @@ Item {
                         Layout.preferredWidth: 250
                         background: Rectangle {
                             color: colors.background
-                            radius: 4
+                            radius: 0
+                            border.color: sortByComboBox.activeFocus ? colors.superGreen : "#22FFFFFF"
+                            border.width: 1
                         }
                         Layout.alignment: Qt.AlignVCenter
                         implicitHeight: 40
@@ -699,7 +728,7 @@ Item {
 
                         background: Rectangle {
                             color: parent.hovered ? Qt.darker(colors.surface, 1.2) : "transparent"
-                            radius: 4
+                            radius: 0
                         }
                     }
 
@@ -723,7 +752,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: "#050505"
-                radius: 8
+                radius: 0
                 clip: true
                 z: 1
                 Layout.preferredHeight: parent.height - 360
@@ -908,72 +937,24 @@ Item {
     }
 
     Rectangle {
-        id: mainContainer
-        anchors.fill: parent
-        color: "transparent"
-        visible: isPlayerVisible
-        property bool animationComplete: false
-        // A child that can move freely along the x-axis
-        Rectangle {
-            id: transitionbg
-            // Anchor only top and bottom, so height matches the parent
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: parent.width*2  // So it matches the parent's width
-            color: "transparent"
-
-            // Start off-screen to the left
-            x: -width -100
-
-            Image {
-                anchors.fill: parent
-                id: transitionbg_image
-                source: "qrc:/media/transitionbg.png"
-                width: 3840
-                height: 1080
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
-
-                // Optional: Make it look smoother when scaled
-                smooth: true
-            }
-
-            // Smooth animation whenever x changes
-            Behavior on x {
-                NumberAnimation {
-                    duration: 5000
-                    easing.type: Easing.InOutQuad
-                    
-                }
-            }
-
-            // For example, let's say you toggle `visible` in QML.
-            // We can slide in/out on "visible" changes:
-            onVisibleChanged: {
-                if (visible) {
-                    transitionbg.x = 0;       // Slide fully onscreen
-                }
-            }
-            onXChanged: {
-                if (x === 0) {
-                    console.log("Animation reached target value!");
-                    mainContainer.animationComplete = true
-                }
-            }
-        }
-    }
-
-
-    Rectangle {
         id: playerContainer
         anchors.fill: parent
-        visible: isPlayerVisible && mainContainer.animationComplete
+        color: "black"
+        // Fade in/out so the cut to the player isn't abrupt; the MediaPlayer's
+        // own loading screen (black + rotating loading.png) is what shows
+        // during the fade, so the rotation acts as the transition image.
+        opacity: isPlayerVisible ? 1 : 0
+        visible: opacity > 0
         z: isPlayerVisible ? 100 : -1
+
+        Behavior on opacity {
+            NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
+        }
 
         Loader {
             id: playerLoader
             anchors.fill: parent
-            active: isPlayerVisible && mainContainer.animationComplete
+            active: isPlayerVisible
             onLoaded: {
                 console.log(navigator.mediaMetadata[currentMediaId])
                 navigator.selectedCollectionId = navigator.getCollectionId(currentMediaId)
@@ -1130,7 +1111,7 @@ Item {
                             //    GradientStop { position: 0.1; color: "black" }
                             //    GradientStop { position: 0.9; color: "black" }
                             //}
-                            //radius: 4
+                            //radius: 0
 
                             Text {
                                 id: seasonText

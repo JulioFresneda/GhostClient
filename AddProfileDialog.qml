@@ -1,217 +1,241 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 
 Dialog {
     id: addProfileDialog
     modal: true
     visible: false
-    width: 900
-    height: 660
+    width: 680
+    height: 580
     x: (parent.width - width) / 2
     y: (parent.height - height) / 2
     dim: true
-
+    padding: 0
 
     property var profileName: ""
     property int pictureID: 1
 
     signal addProfileClicked()
 
-    background: Rectangle {
-        color: "#050505"
+    // Dimmed backdrop
+    Overlay.modal: Rectangle {
+        color: "#CC000000"
     }
 
-    contentItem: Column {
-        spacing: 20
-        padding: 12
-        Layout.alignment: Qt.AlignVCenter
+    background: Rectangle {
+        color: "#F2050505"
+        radius: 0
+        border.color: "#33FFFFFF"
+        border.width: 1
+    }
 
-        // Title
-        Text {
-            id: title
-            font.pixelSize: 24
-            text: "What is your ghost's name?"
-            color: "#e2e2e2"
-        }
+    contentItem: ColumnLayout {
+        spacing: 18
+        anchors.fill: parent
+        anchors.margins: 28
 
-        // Text Field
-        TextField {
-            id: profileNameField
-            Layout.preferredWidth: 300
-            width: 300
-            Layout.preferredHeight: 40
-            placeholderText: qsTr("Enter profile name")
-            font.pixelSize: 24
-            focus: true // Start with focus on the text field
+        // ─── Name field with thin underline ───
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 56
 
-            Keys.onReturnPressed: {
-                imageGrid.forceActiveFocus()
+            TextField {
+                id: profileNameField
+                anchors.fill: parent
+                placeholderText: qsTr("Name your ghost")
+                color: "white"
+                placeholderTextColor: "#66FFFFFF"
+                font.pixelSize: 22
+                focus: true
+                background: Item {}
+                topPadding: 8
+                bottomPadding: 12
+                Keys.onReturnPressed: imageGrid.forceActiveFocus()
+            }
+
+            Rectangle {
+                id: underline
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 2
+                color: profileNameField.activeFocus ? colors.superGreen : "#33FFFFFF"
+                Behavior on color { ColorAnimation { duration: 180 } }
             }
         }
 
-        // GridView for profile images
+        // ─── Picture grid ───
         Rectangle {
-            color: "#1E1E1E"
-            height: 450
-            width: 860
-            Layout.alignment: Qt.AlignVCenter
-            radius: 6
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            color: "#0DFFFFFF"
+            radius: 0
+            border.color: "#1AFFFFFF"
+            border.width: 1
 
             GridView {
                 id: imageGrid
-                width: parent.width
-                height: parent.height
-                cellWidth: 140
-                cellHeight: 140
-                model: 36 // 36 images
+                anchors.fill: parent
+                anchors.margins: 12
+                cellWidth: 100
+                cellHeight: 100
+                model: 36
                 clip: true
-                focus: false // Enable navigation focus
+                focus: false
 
                 delegate: Item {
-                    width: 120
-                    height: 120
+                    width: imageGrid.cellWidth
+                    height: imageGrid.cellHeight
                     focus: GridView.isCurrentItem
+
                     Rectangle {
+                        id: cell
+                        anchors.centerIn: parent
+                        width: 84
+                        height: 84
+                        radius: 0
                         color: "transparent"
-                        anchors.fill: parent
-                        border.width: 4
-                        border.color: (index + 1) == pictureID ? "#419A38" : "transparent"
-                    }
+                        border.color: (index + 1) === addProfileDialog.pictureID
+                                      ? colors.superGreen
+                                      : (cellMouse.containsMouse ? "#88FFFFFF" : "transparent")
+                        border.width: (index + 1) === addProfileDialog.pictureID ? 3 : 2
+                        scale: (index + 1) === addProfileDialog.pictureID ? 1.05 : 1.0
 
-                    Image {
-                        anchors.margins: 4
-                        anchors.fill: parent
-                        sourceSize.width: 120
-                        sourceSize.height: 120
-                        smooth: true
-                        source: "qrc:/media/ghosts/" + (index + 1) + ".png"
-                    }
+                        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                    MouseArea {
-                        id: mouseArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            addProfileDialog.pictureID = index + 1
-                            console.log("Selected image: " + addProfileDialog.pictureID)
-                            
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 4
+                            sourceSize.width: 120
+                            sourceSize.height: 120
+                            smooth: true
+                            source: "qrc:/media/ghosts/" + (index + 1) + ".png"
+                        }
+
+                        MouseArea {
+                            id: cellMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: addProfileDialog.pictureID = index + 1
                         }
                     }
-                    Keys.onReturnPressed: {
-                        console.log("Selected image: " + addProfileDialog.pictureID)
-                        rowbuttons.forceActiveFocus()
-                    }
 
-                    Keys.onRightPressed: {
-                        moveToNextItem(1)
-                        //console.log(sidebar.usingit)
-                    }
-                    Keys.onLeftPressed: {
-                        moveToPreviousItem(1)
-                    }
-
-                    Keys.onUpPressed: {
-                        moveToPreviousItem(6)
-                    }
-                    Keys.onDownPressed: {
-                        moveToNextItem(6)
-                    }
+                    Keys.onReturnPressed: rowbuttons.forceActiveFocus()
+                    Keys.onRightPressed: moveToNextItem(1)
+                    Keys.onLeftPressed: moveToPreviousItem(1)
+                    Keys.onUpPressed: moveToPreviousItem(6)
+                    Keys.onDownPressed: moveToNextItem(6)
 
                     function moveToNextItem(distance) {
-                        if (addProfileDialog.pictureID < imageGrid.count - distance) {
+                        if (addProfileDialog.pictureID < imageGrid.count - distance + 1) {
                             addProfileDialog.pictureID += distance
-                            console.log("Moved to next item:", addProfileDialog.pictureID)
                         }
                     }
-
                     function moveToPreviousItem(distance) {
-                        if (addProfileDialog.pictureID > distance - 1) {
+                        if (addProfileDialog.pictureID > distance) {
                             addProfileDialog.pictureID -= distance
-                            console.log("Moved to previous item:", addProfileDialog.pictureID)
                         }
                     }
-
                 }
-
-                
             }
         }
 
-        Item {
-            Layout.fillHeight: true
-        }
-
-        // Buttons
-        Row {
-            spacing: 10
-            Layout.alignment: Qt.AlignVCenter
+        // ─── Buttons ───
+        RowLayout {
             id: rowbuttons
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignRight
+            spacing: 12
+
             property bool addselected: true
             Keys.onReturnPressed: {
-                if(addselected){
-                    console.log("New profile name:", profileNameField.text)
-                    profileName = profileNameField.text
-                    addProfileClicked()
+                if (addselected) {
+                    addProfileDialog.profileName = profileNameField.text
+                    addProfileDialog.addProfileClicked()
                     addProfileDialog.close()
-                }
-                else {
+                } else {
                     addProfileDialog.close()
-                    profileName = ""
-                    pictureID = 1
+                    addProfileDialog.profileName = ""
+                    addProfileDialog.pictureID = 1
                 }
             }
-            Keys.onLeftPressed: {
-                addselected = false
-            }
-            Keys.onRightPressed: {
-                addselected = true
-            }
+            Keys.onLeftPressed: addselected = false
+            Keys.onRightPressed: addselected = true
+
+            Item { Layout.fillWidth: true }
+
+            // Cancel — outlined pill
             Button {
+                id: cancelBtn
                 text: qsTr("Cancel")
-                //focus: !rowbuttons.addselected
+                font.pixelSize: 15
+                Layout.preferredWidth: 130
+                Layout.preferredHeight: 42
                 onClicked: {
                     addProfileDialog.close()
-                    profileName = ""
-                    pictureID = 1
+                    addProfileDialog.profileName = ""
+                    addProfileDialog.pictureID = 1
                 }
-                
-                font.pointSize: 16
                 background: Rectangle {
-                    color: "white"
-                    border.color: !rowbuttons.addselected ? "#419A38" : "#050505"
+                    color: cancelBtn.hovered ? "#1AFFFFFF" : "transparent"
+                    radius: 0
+                    border.color: rowbuttons.addselected ? "#33FFFFFF" : colors.superGreen
                     border.width: 1
-                    radius: 4
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                }
+                contentItem: Text {
+                    text: cancelBtn.text
+                    color: "white"
+                    font: cancelBtn.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
             }
 
-            Item {
-                width: 40
-            }
-
+            // Add — filled green pill
             Button {
-                text: qsTr("Add Ghost")
-                //focus: rowbuttons.addselected
-                font.pointSize: 16
+                id: addBtn
+                text: qsTr("Add ghost")
+                font.pixelSize: 15
+                font.bold: true
+                Layout.preferredWidth: 150
+                Layout.preferredHeight: 42
+                enabled: profileNameField.text.length > 0
                 onClicked: {
-                    console.log("New profile name:", profileNameField.text)
-                    profileName = profileNameField.text
-                    addProfileClicked()
+                    addProfileDialog.profileName = profileNameField.text
+                    addProfileDialog.addProfileClicked()
                     addProfileDialog.close()
                 }
-                
-                horizontalPadding: 20
                 background: Rectangle {
+                    color: !addBtn.enabled
+                           ? "#33419A38"
+                           : (addBtn.hovered ? colors.superGreen : colors.green)
+                    radius: 0
+                    border.color: rowbuttons.addselected ? colors.superGreen : "transparent"
+                    border.width: 2
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+                contentItem: Text {
+                    text: addBtn.text
                     color: "white"
-                    border.color: rowbuttons.addselected && rowbuttons.focus ? "#419A38" : "#e2e2e2"
-                    border.width: 1
-                    radius: 4
+                    font: addBtn.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    opacity: addBtn.enabled ? 1.0 : 0.5
                 }
             }
         }
     }
 
-    Component.onCompleted: {
-        profileNameField.forceActiveFocus() // Start with focus on the text field
+    Component.onCompleted: profileNameField.forceActiveFocus()
+
+    onClosed: {
+        profileNameField.text = ""
+        addProfileDialog.profileName = ""
+        addProfileDialog.pictureID = 1
     }
 }
