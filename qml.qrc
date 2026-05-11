@@ -8,5 +8,6 @@
         <file>Navigator.qml</file>
         <file>AddProfileDialog.qml</file>
         <file>ProfileSlot.qml</file>
+        <file>MediaDetails.qml</file>
     </qresource>
 </RCC>

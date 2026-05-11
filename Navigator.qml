@@ -16,6 +16,31 @@ Item {
     property var currentMediaId
     property string token: ""
 
+    // Details overlay state — populated by MediaCard info-button clicks.
+    property bool isDetailsVisible: false
+    property var detailsData: null
+    property string detailsCoverId: ""
+    property string detailsCoverBackup: ""
+
+    // Holds the next category while the fade-out plays, so the actual
+    // navigator.selectCategory() call happens at the bottom of the dip
+    // (mediaGrid opacity = 0) and the content swap is invisible.
+    property string _pendingCategory: ""
+
+    function switchCategory(cat) {
+        // No-op if nothing would change — avoid pointless fades.
+        if (cat === navigator.currentCategory && navigator.selectedCollectionId === "") return
+        _pendingCategory = cat
+        categorySwitchFade.restart()
+    }
+
+    SequentialAnimation {
+        id: categorySwitchFade
+        NumberAnimation { target: mediaGrid; property: "opacity"; to: 0; duration: 120; easing.type: Easing.OutQuad }
+        ScriptAction { script: navigator.selectCategory(root._pendingCategory, "") }
+        NumberAnimation { target: mediaGrid; property: "opacity"; to: 1; duration: 180; easing.type: Easing.InQuad }
+    }
+
     // Emitted when the user wants to switch profile — main.qml hides the
     // navigator and shows the profile selector again.
     signal backToProfileSelect
@@ -116,13 +141,11 @@ Item {
                 property bool usingit: true
                 Keys.onUpPressed: {
                     var prev = navigator.getPreviousCategory()
-                    navigator.currentCategory = prev != "" ? prev : navigator.currentCategory
-                    navigator.selectedCollectionId = ""  
+                    root.switchCategory(prev != "" ? prev : navigator.currentCategory)
                 }
                 Keys.onDownPressed: {
                     var next = navigator.getNextCategory()
-                    navigator.currentCategory = next != "" ? next : navigator.currentCategory
-                    navigator.selectedCollectionId = ""  
+                    root.switchCategory(next != "" ? next : navigator.currentCategory)
                 }
                 Keys.onRightPressed: {
                     usingit = false
@@ -206,21 +229,19 @@ Item {
                             Behavior on color { ColorAnimation { duration: 120 } }
                         }
 
-                        onClicked: {
-                            navigator.currentCategory = modelData.key
-                            navigator.selectedCollectionId = ""
-                        }
+                        onClicked: root.switchCategory(modelData.key)
                     }
                 }
 
                 // ── In-collection back button (visible only inside a collection)
                 ItemDelegate {
+                    id: backToLibraryDelegate
                     Layout.fillWidth: true
                     height: 44
                     visible: navigator.selectedCollectionId !== ""
 
                     background: Rectangle {
-                        color: hovered ? "#14FFFFFF" : "transparent"
+                        color: backToLibraryDelegate.hovered ? "#14FFFFFF" : "transparent"
                         radius: 0
                     }
                     contentItem: Text {
@@ -256,8 +277,6 @@ Item {
                     }
                     onClicked: root.backToProfileSelect()
                 }
-
-                Item { Layout.preferredHeight: 8 }
 
                 ItemDelegate {
                     Layout.fillWidth: true
@@ -335,7 +354,7 @@ Item {
                     Item { Layout.fillWidth: true }
 
                     Text {
-                        text: "Agrupar"
+                        text: "Group"
                         color: "white"  // White text color
                         Layout.alignment: Qt.AlignVCenter 
                         font.pointSize: 14
@@ -372,10 +391,7 @@ Item {
                             }
                         }
 
-                        onCheckedChanged: {
-                            navigator.updateFilteredData()
-                            navigator.groupByCollection = groupMoviesCheck.checked
-                        }
+                        onCheckedChanged: navigator.groupByCollection = groupMoviesCheck.checked
                     }
 
                     
@@ -718,6 +734,10 @@ Item {
                         visible: true
                         onClicked: {
                             navigator.clearFilters()
+                            // ComboBox displayText is driven by its internal
+                            // currentIndex, not navigator.selectedProducer —
+                            // so we have to reset it explicitly.
+                            producerFilter.currentIndex = 0
                         }
 
                         contentItem: Text {
@@ -872,22 +892,7 @@ Item {
                         backupId: navigator.getCollectionId(modelData.ID)
                         property bool isCollection: modelData.collection_title ? true : false
 
-                        Keys.onReturnPressed: {
-                            if (navigator.selectedCollectionId) {
-                                console.log("Loading media from collection:", modelData.ID)
-                                currentMediaId = modelData.ID
-                                isPlayerVisible = true
-                            } else if (modelData.collection_title) {
-                                navigator.selectedCollectionId = modelData.ID
-                                selectedCollectionTitle = modelData.collection_title
-                                navigator.updateFilteredData()
-                            } 
-                            else {
-                                console.log("Loading standalone media:", modelData.ID)
-                                currentMediaId = modelData.ID
-                                isPlayerVisible = true
-                            }
-                        }
+                        Keys.onReturnPressed: _activate()
                         Keys.onRightPressed: {
                             moveToNextItem()
                             //console.log(sidebar.usingit)
@@ -900,18 +905,14 @@ Item {
                             mediaGrid.currentIndex = -1
                             sidebar.forceActiveFocus()
                             var prev = navigator.getPreviousCategory()
-                            navigator.currentCategory = prev != "" ? prev : navigator.currentCategory
-                            navigator.selectedCollectionId = "" 
-                            
+                            root.switchCategory(prev != "" ? prev : navigator.currentCategory)
                         }
                         Keys.onDownPressed: {
                             sidebar.usingit = true
                             mediaGrid.currentIndex = -1
                             sidebar.forceActiveFocus()
                             var next = navigator.getNextCategory()
-                            navigator.currentCategory = next != "" ? next : navigator.currentCategory
-                            navigator.selectedCollectionId = "" 
-                            
+                            root.switchCategory(next != "" ? next : navigator.currentCategory)
                         }
 
                         function moveToNextItem() {
@@ -933,6 +934,27 @@ Item {
 
                 
             }
+        }
+    }
+
+    MediaDetails {
+        id: mediaDetailsView
+        anchors.fill: parent
+        visible: isDetailsVisible
+        z: 90
+        entity: detailsData || ({})
+        coverMediaId: detailsCoverId
+        coverBackupId: detailsCoverBackup
+
+        onCloseRequested: isDetailsVisible = false
+        onPlayRequested: function(id) {
+            isDetailsVisible = false
+            currentMediaId = id
+            isPlayerVisible = true
+        }
+        onOpenCollectionRequested: function(id) {
+            isDetailsVisible = false
+            navigator.selectedCollectionId = id
         }
     }
 
@@ -1004,7 +1026,35 @@ Item {
         border.width: 5
         bottomLeftRadius: 0
         bottomRightRadius: 0
-        border.color: cardMouseArea.containsMouse || !sidebar.usingit && focus ? colors.green : colors.strongWhite
+        border.color: cardHover.hovered || (!sidebar.usingit && focus) ? colors.green : colors.strongWhite
+
+        // Hover-only — never participates in click hit-testing, so the cover
+        // and info-button MouseAreas below receive their events normally.
+        HoverHandler {
+            id: cardHover
+        }
+
+        // Activation = "play this card / enter this collection". Mirrors the
+        // old whole-card onClicked logic so cover-clicks and Keys.onReturn
+        // behave identically.
+        function _activate() {
+            if (navigator.selectedCollectionId) {
+                currentMediaId = modelData.ID
+                isPlayerVisible = true
+            } else if (modelData.collection_title) {
+                navigator.selectedCollectionId = modelData.ID
+            } else {
+                currentMediaId = modelData.ID
+                isPlayerVisible = true
+            }
+        }
+
+        function _showDetails() {
+            detailsData = modelData
+            detailsCoverId = mediaId
+            detailsCoverBackup = backupId
+            isDetailsVisible = true
+        }
 
         //gradient: Gradient {
             //GradientStop { position: 0.0; color: colors.strongWhite }
@@ -1038,7 +1088,14 @@ Item {
                     anchors.fill: parent
                     mediaId: card.mediaId
                     backupId: card.backupId
-                    coverImageBase64: loginManager.getCoverImage(card.mediaId, card.backupId)       
+                    coverImageBase64: loginManager.getCoverImage(card.mediaId, card.backupId)
+                }
+
+                // Cover click → play directly (or enter the collection).
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: card._activate()
                 }
             }
 
@@ -1054,6 +1111,12 @@ Item {
                 color: "transparent"
                 Rectangle {
                     id: progressBar
+                    // Cache the progress value once per delegate render —
+                    // getMediaProgress hits a map and we'd otherwise call it
+                    // six times below (visible + width + 4 gradient stops).
+                    property real progress: navigator.getMediaProgress(card.mediaId)
+                    property bool completed: progress > 0.99
+
                     anchors {
                         left: parent.left
                         right: parent.right
@@ -1061,8 +1124,8 @@ Item {
                     }
                     height: 6
                     color: colors.background
-                    visible: navigator.getMediaProgress(card.mediaId) > 0
-    
+                    visible: progress > 0
+
                     Rectangle {
                         id: progressFill
                         anchors {
@@ -1070,29 +1133,30 @@ Item {
                             top: parent.top
                             bottom: parent.bottom
                         }
-                        width: parent.width * navigator.getMediaProgress(card.mediaId)
+                        width: parent.width * progressBar.progress
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
                             GradientStop {
                                 position: 1.0
-                                color: navigator.getMediaProgress(card.mediaId) > 0.99 ? colors.midnightBlue : colors.superGreen
+                                color: progressBar.completed ? colors.midnightBlue : colors.superGreen
                             }
                             GradientStop {
-                                position: navigator.getMediaProgress(card.mediaId) > 0.99 ? 0.5 : 0.8
-                                color: navigator.getMediaProgress(card.mediaId) > 0.99 ? colors.periwinkle : colors.green
+                                position: progressBar.completed ? 0.5 : 0.8
+                                color: progressBar.completed ? colors.periwinkle : colors.green
                             }
                             GradientStop {
                                 position: 0.0
-                                color: navigator.getMediaProgress(card.mediaId) > 0.99 ? colors.midnightBlue : colors.green
+                                color: progressBar.completed ? colors.midnightBlue : colors.green
                             }
                         }
                     }
                 }
                 
                 Item {
+                    id: titleContent
                     width: parent.width
                     // Dynamically adjust height to fit both texts with spacing
-                    height: (season !== "" ? seasonText.implicitHeight + 12 : 0) + titleText.implicitHeight + 18 
+                    height: (season !== "" ? seasonText.implicitHeight + 12 : 0) + titleText.implicitHeight + 18
 
                     Column {
                         anchors.fill: parent
@@ -1144,36 +1208,46 @@ Item {
                     }
                 }
 
-
-
-
-                
-                
             }
         }
 
-        MouseArea {
-            id: cardMouseArea
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: {
-                console.log("MediaCard clicked:", mediaId, "Collection:", modelData.collection_title)
-                if (navigator.selectedCollectionId) {
-                    console.log("Loading media from collection:", modelData.ID)
-                    currentMediaId = modelData.ID
-                    isPlayerVisible = true
-                } else if (modelData.collection_title) {
-                    navigator.selectedCollectionId = modelData.ID
-                    selectedCollectionTitle = modelData.collection_title
-                    navigator.updateFilteredData()
-                } 
-                else {
-                    console.log("Loading standalone media:", modelData.ID)
-                    currentMediaId = modelData.ID
-                    isPlayerVisible = true
-                }
+        // Info button — direct child of card, declared LAST so it's painted
+        // on top. Shown only when the card is hovered.
+        Rectangle {
+            id: infoButton
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 10
+            width: 36
+            height: 36
+            z: 10
+            visible: cardHover.hovered || infoHover.hovered
+            color: infoHover.hovered ? colors.superGreen : "#CC000000"
+            border.color: colors.superGreen
+            border.width: 2
+
+            Behavior on color { ColorAnimation { duration: 100 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "i"
+                color: infoHover.hovered ? "black" : colors.superGreen
+                font.italic: true
+                font.bold: true
+                font.pointSize: 16
+                font.family: "Georgia"
+            }
+
+            HoverHandler {
+                id: infoHover
+                cursorShape: Qt.PointingHandCursor
+            }
+
+            TapHandler {
+                onTapped: card._showDetails()
             }
         }
+
     }
 
     // Component for list items

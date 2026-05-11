@@ -361,7 +361,17 @@ void Medium::fetchMediaMetadata() {
  * @return QString Base64 encoded image data or empty string on failure
  */
 QString Medium::getBase64ImageFromServer(const QString& mediaId) {
-    // Prepare image request
+    if (mediaId.isEmpty()) return QString();
+
+    // Serve from cache when possible — this function blocks the GUI thread
+    // on a synchronous HTTPS round-trip, so a re-entry into a category (with
+    // many MediaCard delegates being recreated) used to stall the UI even
+    // though the bytes were already in hand.
+    const auto cached = m_coverCache.constFind(mediaId);
+    if (cached != m_coverCache.constEnd()) {
+        return cached.value();
+    }
+
     QUrl url(QString(m_url + "/cover/%1").arg(mediaId));
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -369,15 +379,12 @@ QString Medium::getBase64ImageFromServer(const QString& mediaId) {
 
     QJsonObject jsonObj;
 
-    // Send synchronous image request
     QNetworkReply* reply = m_networkManager.post(request, QJsonDocument(jsonObj).toJson());
 
-    // Wait for response using event loop
     QEventLoop eventLoop;
     connect(reply, &QNetworkReply::finished, &eventLoop, &QEventLoop::quit);
     eventLoop.exec();
 
-    // Process image response
     QString base64;
     if (reply->error() == QNetworkReply::NoError) {
         QByteArray imageData = reply->readAll();
@@ -385,10 +392,15 @@ QString Medium::getBase64ImageFromServer(const QString& mediaId) {
     }
     else {
         qWarning() << "Network error:" << reply->errorString();
-        base64 = QString("");
     }
 
     reply->deleteLater();
+
+    // Only cache successful fetches — leaves the door open for a retry next
+    // time if the cover became available after a transient failure.
+    if (!base64.isEmpty()) {
+        m_coverCache.insert(mediaId, base64);
+    }
     return base64;
 }
 

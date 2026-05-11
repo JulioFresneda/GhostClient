@@ -194,6 +194,11 @@ private:
     /** @brief Cleans up VLC resources */
     void cleanupVLC();
 
+    /** @brief Prevents idle suspend / screen blanking while playback is active. */
+    void inhibitIdle();
+    /** @brief Releases the idle inhibitor. Safe to call when no inhibit is held. */
+    void uninhibitIdle();
+
     // libVLC video callbacks — invoked on VLC's video output thread
     static unsigned videoFormatCallback(void** opaque, char* chroma,
                                         unsigned* width, unsigned* height,
@@ -284,6 +289,12 @@ private:
     int m_linesU;
     int m_linesV;
     bool m_frameDeliveryPending;
+
+    // Idle-inhibitor state. On Linux this is the cookie returned by
+    // org.freedesktop.ScreenSaver.Inhibit (0 = not held). On Windows we just
+    // track a bool since SetThreadExecutionState is stateless per-thread.
+    quint32 m_inhibitCookie = 0;
+    bool m_inhibitActive = false;
 };
 
 #endif // VLCPLAYERHANDLER_H

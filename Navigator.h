@@ -4,6 +4,7 @@
 #include <QString>
 #include <QList>
 #include <QVariant>
+#include <QHash>
 
 /**
  * @class Navigator
@@ -83,11 +84,12 @@ public:
     Q_INVOKABLE float getMediaProgress(QString mediaId); ///< Retrieves the progress of a media item by its ID.
     Q_INVOKABLE void updateFilteredData(); ///< Updates filtered data based on current filters.
     Q_INVOKABLE void updateFilteredData(QString searchText); ///< Updates filtered data based on a search text.
+    Q_INVOKABLE void selectCategory(const QString& category, const QString& collectionId = QString()); ///< Sets category and collection in one shot, running updateFilteredData at most once.
     Q_INVOKABLE void setMediaData(QList<QVariantMap> mediaData); ///< Sets the media data.
     Q_INVOKABLE void setCollectionsData(QList<QVariantMap> collectionsData); ///< Sets the collection data.
     Q_INVOKABLE void setMediaMetadata(QList<QVariantMap> mediaMetadata); ///< Sets the media metadata.
     Q_INVOKABLE QVariantMap getMediaMetadata(QString mediaId); ///< Retrieves metadata for a specific media item by its ID.
-    Q_INVOKABLE QVariantMap getMedia(QString mediaId); ///< Retrieves media data by its ID.
+    Q_INVOKABLE QVariantMap getMedia(QString mediaId) const; ///< Retrieves media data by its ID.
     Q_INVOKABLE QString getEpisodeType(QString currentMediaId); ///< Determines the type of an episode.
     Q_INVOKABLE QString getCollectionId(QString mediaId); ///< Retrieves the collection ID for a media item.
 
@@ -116,6 +118,12 @@ private:
     QMap<QString, QVariantMap> m_mediaMetadata; ///< Maps media IDs to their metadata.
     QList<QVariantMap> m_filteredData; ///< Stores the filtered media data.
 
+    // O(1) lookup indexes, rebuilt by setMediaData / setCollectionsData.
+    // Replace the linear scans that used to dominate updateFilteredData.
+    QHash<QString, QVariantMap> m_mediaById;
+    QHash<QString, QVariantMap> m_collectionById;
+    QHash<QString, QList<QVariantMap>> m_mediaByCollectionId;
+
     QString m_currentCategory; ///< Stores the current category.
     QString m_selectedCollectionId; ///< Stores the selected collection ID.
 
@@ -133,12 +141,15 @@ private:
     QSet<QString> parseJson(const QString& json); ///< Parses a JSON string into a set of strings.
     bool anyValueContains(const QVariantMap& map, const QString& substring) const; ///< Checks if any value in the map contains the given substring.
 
-    QVariantMap getCollection(QString collectionId); ///< Retrieves a collection by its ID.
+    QVariantMap getCollection(QString collectionId) const; ///< Retrieves a collection by its ID.
+
+    void rebuildMediaIndexes(); ///< Rebuilds m_mediaById and m_mediaByCollectionId from m_mediaData.
+    void rebuildCollectionIndexes(); ///< Rebuilds m_collectionById from m_collectionsData.
 
     QString getEraFromYear(int year); ///< Determines the era from a given year.
     QSet<QString> parseGenres(const QString& genresJson); ///< Parses a JSON string of genres into a set of strings.
 
-    QList<QVariantMap> getMediaByCollection(QString collectionId); ///< Retrieves media items belonging to a collection.
+    QList<QVariantMap> getMediaByCollection(QString collectionId) const; ///< Retrieves media items belonging to a collection.
     bool mediaInCollection(QString mediaId, QString collectionId); ///< Checks if a media item belongs to a collection.
 
     void filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections, QString searchText); ///< Filters media and collections by a search text.

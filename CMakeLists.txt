@@ -12,6 +12,11 @@ set(CMAKE_AUTOUIC ON)
 # Find Qt6 and fail if it's not found
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Multimedia)
 
+# DBus is used on Linux to inhibit idle suspend / screen blanking during playback
+if(NOT WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
+
 # Project sources
 set(PROJECT_SOURCES
     main.cpp
@@ -89,5 +94,5 @@ else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(VLC REQUIRED libvlc)
     target_include_directories(GhostClient PRIVATE ${VLC_INCLUDE_DIRS})
-    target_link_libraries(GhostClient PRIVATE ${VLC_LIBRARIES})
+    target_link_libraries(GhostClient PRIVATE ${VLC_LIBRARIES} Qt6::DBus)
 endif()

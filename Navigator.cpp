@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QSet>
 
  /**
   * @brief Constructor for Navigator class
@@ -110,6 +111,31 @@ void Navigator::setSelectedCollectionId(const QString& collectionId) {
     if (m_selectedCollectionId != collectionId) {
         m_selectedCollectionId = collectionId;
         updateFilteredData();
+        emit selectedCollectionIdChanged();
+    }
+}
+
+void Navigator::selectCategory(const QString& category, const QString& collectionId) {
+    const bool categoryChanged = (m_currentCategory != category);
+    const bool collectionChanged = (m_selectedCollectionId != collectionId);
+
+    if (!categoryChanged && !collectionChanged) {
+        return;
+    }
+
+    if (categoryChanged) {
+        m_currentCategory = category;
+    }
+    if (collectionChanged) {
+        m_selectedCollectionId = collectionId;
+    }
+
+    updateFilteredData();
+
+    if (categoryChanged) {
+        emit currentCategoryChanged();
+    }
+    if (collectionChanged) {
         emit selectedCollectionIdChanged();
     }
 }
@@ -234,17 +260,14 @@ QString Navigator::getNextCategory() const {
  * @return Formatted title string including season/episode for TV shows
  */
 QString Navigator::getMediaTitle(QString mediaId) const {
-    for (const auto& media : m_mediaData) {
-        if (media["ID"] == mediaId) {
-            QString title = "";
-            if (media["type"] == "episode") {
-                title += "[S" + media["season"].toString() + " EP" + media["episode"].toString() + "] ";
-            }
-            title += media["title"].toString();
-            return title;
-        }
+    const QVariantMap media = m_mediaById.value(mediaId);
+    if (media.isEmpty()) return QString();
+    QString title;
+    if (media["type"] == "episode") {
+        title += "[S" + media["season"].toString() + " EP" + media["episode"].toString() + "] ";
     }
-    return QString();
+    title += media["title"].toString();
+    return title;
 }
 
 /**
@@ -339,6 +362,8 @@ void Navigator::clearFilters() {
     emit selectedGenresChanged();
     emit selectedErasChanged();
     emit showTopRatedChanged();
+
+    updateFilteredData();
 }
 
 /**
@@ -368,13 +393,12 @@ QString Navigator::getEpisodeType(QString currentMediaId) {
  */
 QString Navigator::getFinalEpisode() {
     int max = -1;
-    QString mediaId = "";
-    for (const auto& media : m_mediaData) {
-        if (media["collection_id"].toString() == m_selectedCollectionId) {
-            if (media["episode"].toInt() > max) {
-                max = media["episode"].toInt();
-                mediaId = media["ID"].toString();
-            }
+    QString mediaId;
+    for (const auto& media : getMediaByCollection(m_selectedCollectionId)) {
+        const int ep = media["episode"].toInt();
+        if (ep > max) {
+            max = ep;
+            mediaId = media["ID"].toString();
         }
     }
     return mediaId;
@@ -387,19 +411,12 @@ QString Navigator::getFinalEpisode() {
  * @return QString containing the next episode's ID
  */
 QString Navigator::getNextEpisode(QString currentMediaId, int index) {
-    int current_episode = -1;
-    // Find current episode number
-    for (const auto& media : m_mediaData) {
-        if (media["ID"] == currentMediaId) {
-            current_episode = media["episode"].toInt();
-        }
-    }
-    // Find episode with number current + index
-    for (const auto& media : m_mediaData) {
-        if (media["collection_id"].toString() == m_selectedCollectionId) {
-            if (media["episode"].toInt() == current_episode + index) {
-                return media["ID"].toString();
-            }
+    const QVariantMap current = m_mediaById.value(currentMediaId);
+    if (current.isEmpty()) return QString();
+    const int target = current["episode"].toInt() + index;
+    for (const auto& media : getMediaByCollection(m_selectedCollectionId)) {
+        if (media["episode"].toInt() == target) {
+            return media["ID"].toString();
         }
     }
     return QString();
@@ -443,13 +460,29 @@ bool Navigator::anyValueContains(const QVariantMap& map, const QString& substrin
  * @param collectionId ID of the collection
  * @return QVariantMap containing collection data
  */
-QVariantMap Navigator::getCollection(QString collectionId) {
-    for (const auto& collection : m_collectionsData) {
-        if (collection["ID"] == collectionId) {
-            return collection;
+QVariantMap Navigator::getCollection(QString collectionId) const {
+    return m_collectionById.value(collectionId);
+}
+
+void Navigator::rebuildMediaIndexes() {
+    m_mediaById.clear();
+    m_mediaByCollectionId.clear();
+    m_mediaById.reserve(m_mediaData.size());
+    for (const auto& media : m_mediaData) {
+        m_mediaById.insert(media["ID"].toString(), media);
+        const QString cid = media["collection_id"].toString();
+        if (!cid.isEmpty()) {
+            m_mediaByCollectionId[cid].append(media);
         }
     }
-    return QVariantMap();
+}
+
+void Navigator::rebuildCollectionIndexes() {
+    m_collectionById.clear();
+    m_collectionById.reserve(m_collectionsData.size());
+    for (const auto& collection : m_collectionsData) {
+        m_collectionById.insert(collection["ID"].toString(), collection);
+    }
 }
 
 /**
@@ -495,19 +528,11 @@ QSet<QString> Navigator::parseGenres(const QString& genresJson) {
  * @param filteredCollections Reference to filtered collections list
  */
 void Navigator::filterByChosenCollection(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections) {
-    if (m_selectedCollectionId != "") {
-        filteredCollections.clear();
-        QList<QVariantMap> _tmp;
-        // Remove media not in selected collection
-        for (const auto& media : filteredMedia) {
-            if (media["collection_id"] != m_selectedCollectionId) {
-                _tmp.append(media);
-            }
-        }
-        for (const auto& media : _tmp) {
-            filteredMedia.removeAll(media);
-        }
-    }
+    if (m_selectedCollectionId.isEmpty()) return;
+    filteredCollections.clear();
+    filteredMedia.removeIf([this](const QVariantMap& media) {
+        return media["collection_id"] != m_selectedCollectionId;
+    });
 }
 
 /**
@@ -543,12 +568,16 @@ void Navigator::updateFilteredData(QString searchText) {
             filteredCollections.clear();
         }
         else {
-            // Remove media items that are part of displayed collections
+            // Remove media items that are part of displayed collections.
+            // Build the set of shown collection IDs once, then filter media by lookup.
+            QSet<QString> shownCollectionIds;
+            shownCollectionIds.reserve(filteredCollections.size());
             for (const auto& collection : filteredCollections) {
-                for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
-                    filteredMedia.removeAll(media);
-                }
+                shownCollectionIds.insert(collection["ID"].toString());
             }
+            filteredMedia.removeIf([&shownCollectionIds](const QVariantMap& media) {
+                return shownCollectionIds.contains(media["collection_id"].toString());
+            });
         }
     }
 
@@ -592,28 +621,19 @@ void Navigator::sortFilteredData() {
  * @param filteredCollections Reference to list of filtered collections
  */
 void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollections) {
-    QList<QString> filteredCollectionIDs;
-    // Create list of collection IDs
-    for (const auto& collection : filteredCollections) {
-        filteredCollectionIDs.append(collection["ID"].toString());
-    }
-
-    // Apply filters to each collection
-    for (const auto& collection : filteredCollections) {
+    filteredCollections.removeIf([this](const QVariantMap& collection) {
         bool remove = false;
 
-        // Filter by genres if any are selected
         if (m_selectedGenres.size() > 0) {
             bool isGenre = false;
             for (const auto& genre : m_selectedGenres) {
-                for (const auto& mediaGenre : parseGenres(collection["genres"].toString())) {
-                    isGenre = isGenre || genre == mediaGenre;
+                for (const auto& mg : parseGenres(collection["genres"].toString())) {
+                    isGenre = isGenre || genre == mg;
                 }
             }
             remove = remove || !isGenre;
         }
 
-        // Filter by eras if any are selected
         if (m_selectedEras.size() > 0) {
             bool isEra = false;
             for (const auto& era : m_selectedEras) {
@@ -624,35 +644,18 @@ void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollecti
             remove = remove || !isEra;
         }
 
-        // Filter by producer
-        bool isProducer = m_selectedProducer == "" or m_selectedProducer == collection["producer"];
+        bool isProducer = m_selectedProducer.isEmpty() || m_selectedProducer == collection["producer"];
         for (const auto& media : getMediaByCollection(collection["ID"].toString())) {
             isProducer = isProducer || m_selectedProducer == media["producer"];
         }
         remove = remove || !isProducer;
 
-        // Filter by rating
         if (m_showTopRated) {
-            double rating = collection["collection_rating"].toDouble();
-            remove = remove || rating < 8.0;
+            remove = remove || collection["collection_rating"].toDouble() < 8.0;
         }
 
-        // Remove collection if it doesn't match filters
-        if (!remove) {
-            filteredCollectionIDs.removeAll(collection["ID"].toString());
-        }
-    }
-
-    // Remove filtered collections
-    for (const auto& mediaId : filteredCollectionIDs) {
-        QVariantMap fm;
-        for (const auto& fmedia : filteredCollections) {
-            if (fmedia["ID"] == mediaId) {
-                fm = fmedia;
-            }
-        }
-        filteredCollections.removeAll(fm);
-    }
+        return remove;
+    });
 }
 
 /**
@@ -660,38 +663,27 @@ void Navigator::filterByFilterBarCollection(QList<QVariantMap>& filteredCollecti
  * @param filteredMedia Reference to list of filtered media items
  */
 void Navigator::filterByFilterBarMedia(QList<QVariantMap>& filteredMedia) {
-    QList<QString> filteredMediaIDs;
-    // Create list of media IDs
-    for (const auto& media : filteredMedia) {
-        filteredMediaIDs.append(media["ID"].toString());
-    }
-
-    // Apply filters to each media item
-    for (const auto& media : filteredMedia) {
+    filteredMedia.removeIf([this](const QVariantMap& media) {
         bool remove = false;
 
-        // Filter by genres
         if (m_selectedGenres.size() > 0) {
             bool isGenre = false;
             for (const auto& genre : m_selectedGenres) {
-                // Check collection genres
                 if (media["collection_id"].toString() != "") {
-                    QVariantMap collection_genres = getCollection(media["collection_id"].toString());
-                    for (const auto& mediaGenre : parseGenres(collection_genres["genres"].toString())) {
-                        isGenre = isGenre || genre == mediaGenre;
+                    const QVariantMap collection = getCollection(media["collection_id"].toString());
+                    for (const auto& mg : parseGenres(collection["genres"].toString())) {
+                        isGenre = isGenre || genre == mg;
                     }
                 }
-                // Check individual media genres
                 if (media["genres"] != "") {
-                    for (const auto& mediaGenre : parseGenres(media["genres"].toString())) {
-                        isGenre = isGenre || genre == mediaGenre;
+                    for (const auto& mg : parseGenres(media["genres"].toString())) {
+                        isGenre = isGenre || genre == mg;
                     }
                 }
             }
             remove = remove || !isGenre;
         }
 
-        // Filter by eras
         if (m_selectedEras.size() > 0) {
             bool isEra = false;
             for (const auto& era : m_selectedEras) {
@@ -700,30 +692,14 @@ void Navigator::filterByFilterBarMedia(QList<QVariantMap>& filteredMedia) {
             remove = remove || !isEra;
         }
 
-        // Filter by producer
-        remove = remove || m_selectedProducer != "" and m_selectedProducer != media["producer"];
+        remove = remove || (!m_selectedProducer.isEmpty() && m_selectedProducer != media["producer"]);
 
-        // Filter by rating
         if (m_showTopRated) {
             remove = remove || media["rating"].toDouble() < 8.0;
         }
 
-        // Keep media if it matches filters
-        if (!remove) {
-            filteredMediaIDs.removeAll(media["ID"].toString());
-        }
-    }
-
-    // Remove filtered media
-    for (const auto& mediaId : filteredMediaIDs) {
-        QVariantMap fm;
-        for (const auto& fmedia : filteredMedia) {
-            if (fmedia["ID"] == mediaId) {
-                fm = fmedia;
-            }
-        }
-        filteredMedia.removeAll(fm);
-    }
+        return remove;
+    });
 }
 
 /**
@@ -733,35 +709,16 @@ void Navigator::filterByFilterBarMedia(QList<QVariantMap>& filteredMedia) {
  * @param searchText Text to filter by
  */
 void Navigator::filterBySearchText(QList<QVariantMap>& filteredMedia, QList<QVariantMap>& filteredCollections, QString searchText) {
-    if (searchText != "") {
-        QList<QVariantMap> _tmp;
-        // Filter media items
-        for (const auto& media : filteredMedia) {
-            QVariantMap collection = getCollection(media["collection_id"].toString());
-            QString collection_title = collection["collection_title"].toString();
+    if (searchText.isEmpty()) return;
 
-            QVariantMap _tmp_media = media;
-            _tmp_media["collection_title"] = collection_title;
-            if (!anyValueContains(_tmp_media, searchText)) {
-                _tmp.append(media);
-            }
-        }
-        for (const auto& media : _tmp) {
-            filteredMedia.removeAll(media);
-        }
-
-        // Filter collections
-        _tmp.clear();
-        for (const auto& media : filteredCollections) {
-            if (!anyValueContains(media, searchText)) {
-                _tmp.append(media);
-            }
-        }
-        for (const auto& media : _tmp) {
-            filteredCollections.removeAll(media);
-        }
-        _tmp.clear();
-    }
+    filteredMedia.removeIf([this, &searchText](const QVariantMap& media) {
+        QVariantMap augmented = media;
+        augmented["collection_title"] = getCollection(media["collection_id"].toString())["collection_title"].toString();
+        return !anyValueContains(augmented, searchText);
+    });
+    filteredCollections.removeIf([this, &searchText](const QVariantMap& collection) {
+        return !anyValueContains(collection, searchText);
+    });
 }
 
 /**
@@ -789,7 +746,8 @@ void Navigator::filterByCategory(QList<QVariantMap>& filteredMedia, QList<QVaria
     if (m_currentCategory != "continueWatching") {
         for (const auto& collection : m_collectionsData) {
             QString type = collection["collection_type"].toString();
-            if (m_currentCategory == "series" and type == "serie" or m_currentCategory == "movies" and type == "movies") {
+            if ((m_currentCategory == "series" && type == "serie") ||
+                (m_currentCategory == "movies" && type == "movies")) {
                 filteredCollections.append(collection);
             }
         }
@@ -816,14 +774,8 @@ bool Navigator::mediaInCollection(QString mediaId, QString collectionId) {
  * @param collectionId ID of the collection
  * @return QList<QVariantMap> containing media items
  */
-QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) {
-    QList<QVariantMap> result;
-    for (const auto& media : m_mediaData) {
-        if (media["collection_id"] == collectionId) {
-            result.append(media);
-        }
-    }
-    return result;
+QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) const {
+    return m_mediaByCollectionId.value(collectionId);
 }
 
 /**
@@ -832,6 +784,7 @@ QList<QVariantMap> Navigator::getMediaByCollection(QString collectionId) {
  */
 void Navigator::setMediaData(QList<QVariantMap> mediaData) {
     m_mediaData = mediaData;
+    rebuildMediaIndexes();
     emit mediaDataChanged();
 }
 
@@ -841,6 +794,7 @@ void Navigator::setMediaData(QList<QVariantMap> mediaData) {
  */
 void Navigator::setCollectionsData(QList<QVariantMap> collectionsData) {
     m_collectionsData = collectionsData;
+    rebuildCollectionIndexes();
     emit collectionsDataChanged();
 }
 
@@ -947,11 +901,6 @@ QString Navigator::getCollectionId(QString mediaId) {
 
 }
 
-QVariantMap Navigator::getMedia(QString mediaId) {
-    for (const auto& media : m_mediaData) {
-        if (media["ID"] == mediaId) {
-            return media;
-        }
-    }
-    return QVariantMap();
+QVariantMap Navigator::getMedia(QString mediaId) const {
+    return m_mediaById.value(mediaId);
 }

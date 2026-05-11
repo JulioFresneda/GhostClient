@@ -11,6 +11,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QSettings>
+#include <QHash>
 
  /**
   * @brief The Medium class handles media streaming client functionality
@@ -185,6 +186,12 @@ private:
     QString m_selectedProfileID;             ///< Currently selected profile
     QString m_url;                           ///< Server base URL
     bool m_isConnected = false;              ///< Connection status flag
+
+    // In-memory cover cache. Keys are mediaId (or backup collection ID),
+    // values are raw base64. Populated on first successful fetch and reused
+    // for every subsequent call this session. Empty/failed fetches are not
+    // cached, so a missing-then-arriving cover can recover on next request.
+    QHash<QString, QString> m_coverCache;
 
     /**
      * @brief Retrieves base64 encoded image from server

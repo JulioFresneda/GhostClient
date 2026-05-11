@@ -12,12 +12,18 @@
 #include <QVideoFrame>
 #include <QVideoFrameFormat>
 #include <QMutexLocker>
+#include <QElapsedTimer>
+#include <QThread>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
 #ifdef Q_OS_WIN
 #include <windows.h>
+#else
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
 #endif
 
 /**
@@ -140,7 +146,56 @@ VLCPlayerHandler::VLCPlayerHandler(QObject* parent)
  * @brief Destructor that ensures proper cleanup of VLC resources
  */
 VLCPlayerHandler::~VLCPlayerHandler() {
+    uninhibitIdle();
     cleanupVLC();
+}
+
+void VLCPlayerHandler::inhibitIdle() {
+    if (m_inhibitActive) return;
+#ifdef Q_OS_WIN
+    // ES_SYSTEM_REQUIRED prevents the idle-to-sleep timer; ES_DISPLAY_REQUIRED
+    // keeps the screen on. ES_CONTINUOUS makes it persist until we clear it.
+    SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+    m_inhibitActive = true;
+#else
+    QDBusInterface ss("org.freedesktop.ScreenSaver",
+                      "/org/freedesktop/ScreenSaver",
+                      "org.freedesktop.ScreenSaver",
+                      QDBusConnection::sessionBus());
+    if (!ss.isValid()) {
+        fprintf(stderr, "[GHOST] inhibitIdle: ScreenSaver D-Bus iface not available\n");
+        fflush(stderr);
+        return;
+    }
+    QDBusReply<quint32> reply = ss.call("Inhibit",
+                                        QStringLiteral("GhostClient"),
+                                        QStringLiteral("Playing media"));
+    if (!reply.isValid()) {
+        fprintf(stderr, "[GHOST] inhibitIdle: Inhibit call failed: %s\n",
+                reply.error().message().toUtf8().constData());
+        fflush(stderr);
+        return;
+    }
+    m_inhibitCookie = reply.value();
+    m_inhibitActive = true;
+#endif
+}
+
+void VLCPlayerHandler::uninhibitIdle() {
+    if (!m_inhibitActive) return;
+#ifdef Q_OS_WIN
+    SetThreadExecutionState(ES_CONTINUOUS);
+#else
+    QDBusInterface ss("org.freedesktop.ScreenSaver",
+                      "/org/freedesktop/ScreenSaver",
+                      "org.freedesktop.ScreenSaver",
+                      QDBusConnection::sessionBus());
+    if (ss.isValid() && m_inhibitCookie != 0) {
+        ss.call("UnInhibit", m_inhibitCookie);
+    }
+    m_inhibitCookie = 0;
+#endif
+    m_inhibitActive = false;
 }
 
 /**
@@ -188,9 +243,24 @@ void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
     if (m_mediaPlayer) {
         libvlc_media_player_play(m_mediaPlayer);
 
-        // Wait for player to enter playing or paused state
+        // Wait for player to reach Playing/Paused, but bound it. Without the
+        // timeout an error during open (bad URL, decoder crash) would pin a
+        // CPU core and freeze the GUI forever. Yields between polls instead
+        // of spinning.
+        QElapsedTimer waitTimer;
+        waitTimer.start();
+        constexpr qint64 kStartTimeoutMs = 5000;
         libvlc_state_t state = libvlc_media_player_get_state(m_mediaPlayer);
-        while (!(state == libvlc_Playing || state == libvlc_Paused)) {
+        while (state != libvlc_Playing && state != libvlc_Paused) {
+            if (state == libvlc_Error) {
+                emit errorOccurred("VLC entered error state while starting playback");
+                return;
+            }
+            if (waitTimer.elapsed() > kStartTimeoutMs) {
+                emit errorOccurred("Timed out waiting for VLC to start playback");
+                return;
+            }
+            QThread::msleep(10);
             state = libvlc_media_player_get_state(m_mediaPlayer);
         }
 
@@ -206,6 +276,7 @@ void VLCPlayerHandler::playMedia(float percentage_watched = 0) {
         // Start timers and notify state change
         m_positionTimer->start();
         m_metadataTimer->start();
+        inhibitIdle();
         emit playingStateChanged(true);
     }
 }
@@ -218,6 +289,7 @@ void VLCPlayerHandler::pauseMedia() {
         libvlc_media_player_pause(m_mediaPlayer);
         m_isPlaying = false;
         m_positionTimer->stop();
+        uninhibitIdle();
         emit playingStateChanged(false);
         emit positionChanged(libvlc_media_player_get_time(m_mediaPlayer));
     }
@@ -231,6 +303,7 @@ void VLCPlayerHandler::stop() {
         libvlc_media_player_stop(m_mediaPlayer);
         m_isPlaying = false;
         m_positionTimer->stop();
+        uninhibitIdle();
         emit playingStateChanged(false);
         emit positionChanged(0);
     }
